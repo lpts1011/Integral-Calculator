@@ -1,0 +1,38 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Run Python tests
+        working-directory: python
+        run: python3 run_tests.py
+
+  cpp:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: brew install cmake qt
+      - name: Configure
+        working-directory: cpp
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix qt)"
+      - name: Build
+        working-directory: cpp
+        run: cmake --build build --parallel
+      - name: Test
+        working-directory: cpp
+        run: ctest --test-dir build --output-on-failure
