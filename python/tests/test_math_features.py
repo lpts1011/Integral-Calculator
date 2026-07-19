@@ -1,6 +1,5 @@
 import unittest
 
-from export_utils import build_latex_export, build_markdown_export
 from interval_utils import build_subintervals, find_piecewise_breakpoints
 from numeric_methods import build_numeric_callable
 from parameter_utils import (
@@ -73,24 +72,11 @@ class MathFeatureTests(unittest.TestCase):
     def test_reverse_interval_keeps_split_point_order(self):
         self.assertEqual(build_subintervals(2, 0, [0.5, 1.5]), [(2.0, 1.5), (1.5, 0.5), (0.5, 0.0)])
 
-    def test_method_comparison_and_export(self):
+    def test_method_comparison(self):
         inputs = prepare_tab2_inputs("x^2", "Numerical Integration", "Simpson", "0", "1", "")
         rows = compare_numerical_methods(inputs)
         self.assertEqual(len(rows), 8)
         self.assertTrue(any(row["method"] == "Simpson" and row["status"] == "ok" for row in rows))
-
-        record = {
-            "func": "x^2",
-            "resolved_func": "x**2",
-            "shown_func": "x^2",
-            "lower": "0",
-            "upper": "1",
-            "method": "Simpson",
-            "raw": "1/3",
-            "split_points": "0.5",
-        }
-        self.assertIn("Split points", build_markdown_export(record))
-        self.assertIn(r"\int_{0}^{1}", build_latex_export(record))
 
 
 if __name__ == "__main__":

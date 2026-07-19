@@ -1,0 +1,183 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="light dark">
+  <script src="./mathlive.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #ffffff;
+      --fg: #1f2933;
+      --muted: #52616b;
+      --border: #d1d5db;
+      --accent: #2563eb;
+      --soft: #f6f7f9;
+    }
+    :root[data-theme="Dark"] {
+      color-scheme: dark;
+      --bg: #1f2429;
+      --fg: #e5e7eb;
+      --muted: #a8b3bd;
+      --border: #374151;
+      --accent: #60a5fa;
+      --soft: #111827;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--fg); }
+    body { padding: 12px 14px 18px; font: 13px/1.45 system-ui, sans-serif; }
+    .summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(120px, .55fr);
+      border: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .summary-item { min-width: 0; padding: 10px 12px; border-right: 1px solid var(--border); }
+    .summary-item:last-child { border-right: 0; }
+    .label { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .value { min-height: 30px; display: flex; align-items: center; overflow-x: auto; }
+    .time-value { font-size: 20px; font-variant-numeric: tabular-nums; }
+    math-field {
+      display: block;
+      min-width: min-content;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--fg);
+      font-size: 20px;
+      pointer-events: none;
+      --caret-color: transparent;
+      --selection-background-color: transparent;
+    }
+    math-field::part(virtual-keyboard-toggle), math-field::part(menu-toggle) { display: none; }
+    #steps { margin-top: 12px; scroll-margin-top: 8px; }
+    .section-title { margin: 0 0 7px; font-size: 14px; font-weight: 650; }
+    .step-list { display: grid; gap: 7px; }
+    .step {
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr);
+      gap: 9px;
+      padding: 8px 10px;
+      border-left: 2px solid var(--accent);
+      background: var(--soft);
+    }
+    .step-number {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .step-title { font-weight: 600; margin-bottom: 2px; }
+    .step-detail, .state, .plain-value { color: var(--muted); }
+    .step math-field { font-size: 18px; }
+    [hidden] { display: none !important; }
+    @media (max-width: 660px) {
+      .summary { grid-template-columns: 1fr; }
+      .summary-item { border-right: 0; border-bottom: 1px solid var(--border); }
+      .summary-item:last-child { border-bottom: 0; }
+    }
+  </style>
+</head>
+<body>
+  <section class="summary">
+    <div class="summary-item"><div class="label" id="exact-label"></div><div class="value" id="exact"></div></div>
+    <div class="summary-item"><div class="label" id="result-label"></div><div class="value" id="result"></div></div>
+    <div class="summary-item"><div class="label" id="time-label"></div><div class="value time-value" id="elapsed"></div></div>
+  </section>
+  <section id="steps" hidden>
+    <h2 class="section-title" id="steps-label"></h2>
+    <div id="steps-content"></div>
+  </section>
+  <script>
+  (() => {
+    let current = null;
+
+    function setMath(container, item, labels) {
+      container.replaceChildren();
+      if (item && item.latex) {
+        const field = document.createElement('math-field');
+        field.readOnly = true;
+        field.setAttribute('read-only', '');
+        field.setAttribute('tabindex', '-1');
+        field.setValue(item.latex, {format: 'latex', silenceNotifications: true});
+        container.appendChild(field);
+        return;
+      }
+      const text = document.createElement('span');
+      text.className = 'plain-value';
+      text.textContent = item && item.text_key ? labels[item.text_key] : (item && item.text) || '';
+      container.appendChild(text);
+    }
+
+    function renderSteps(model, labels) {
+      const section = document.getElementById('steps');
+      const content = document.getElementById('steps-content');
+      const state = model.steps_state || 'hidden';
+      section.hidden = state === 'hidden';
+      content.replaceChildren();
+      if (state === 'loading' || state === 'unavailable') {
+        const message = document.createElement('div');
+        message.className = 'state';
+        message.textContent = labels[state === 'loading' ? 'steps_loading' : 'steps_unavailable'];
+        content.appendChild(message);
+        return;
+      }
+      const list = document.createElement('div');
+      list.className = 'step-list';
+      (model.steps || []).forEach((item, index) => {
+        const row = document.createElement('article');
+        row.className = 'step';
+        const number = document.createElement('div');
+        number.className = 'step-number';
+        number.textContent = String(index + 1);
+        const body = document.createElement('div');
+        const title = document.createElement('div');
+        title.className = 'step-title';
+        title.textContent = labels[item.key] || item.key;
+        const formula = document.createElement('div');
+        setMath(formula, item, labels);
+        body.append(title, formula);
+        if (item.detail_key) {
+          const detail = document.createElement('div');
+          detail.className = 'step-detail';
+          detail.textContent = labels[item.detail_key] || item.detail_key;
+          body.appendChild(detail);
+        }
+        row.append(number, body);
+        list.appendChild(row);
+      });
+      content.appendChild(list);
+    }
+
+    function setData(payload) {
+      current = payload;
+      const {model, labels, theme} = payload;
+      document.documentElement.dataset.theme = theme || '';
+      document.getElementById('exact-label').textContent = labels.exact_result;
+      document.getElementById('result-label').textContent = labels.integral_result;
+      document.getElementById('time-label').textContent = labels.total_time;
+      document.getElementById('steps-label').textContent = labels.integration_steps;
+      setMath(document.getElementById('exact'), model.exact, labels);
+      setMath(document.getElementById('result'), model.result, labels);
+      document.getElementById('elapsed').textContent = model.elapsed == null
+        ? labels.not_available
+        : `${Number(model.elapsed).toFixed(3)} s`;
+      renderSteps(model, labels);
+    }
+
+    window.resultWorkspace = {
+      setData,
+      scrollToSteps() {
+        document.getElementById('steps').scrollIntoView({behavior: 'smooth', block: 'start'});
+      },
+      snapshot() { return current; },
+    };
+  })();
+  </script>
+</body>
+</html>

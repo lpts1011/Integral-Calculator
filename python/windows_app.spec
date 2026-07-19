@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-app_name = "Integral Calculator"
+app_name = "Integral_Calculator_Python"
 hiddenimports = [
     "locales.en",
     "locales.zh_cn",
@@ -11,10 +11,15 @@ hiddenimports = [
     "locales.fr",
     "locales.ar",
     "locales.hi",
-    "matplotlib.backends.backend_tkagg",
+    "matplotlib.backends.backend_qtagg",
+    "PySide6.QtWebChannel",
+    "PySide6.QtWebEngineCore",
+    "PySide6.QtWebEngineWidgets",
 ]
 
 excludes = [
+    "_tkinter",
+    "tkinter",
     "tests",
     "matplotlib.tests",
     "scipy._lib.tests",
@@ -51,12 +56,13 @@ a = Analysis(
         ("calengine", "calengine"),
         ("numpy", "numpy"),
         ("solving", "solving"),
+        ("math_editor/resources", "math_editor/resources"),
     ],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={
         "matplotlib": {
-            "backends": ["TkAgg"],
+            "backends": ["QtAgg"],
         },
     },
     runtime_hooks=[],

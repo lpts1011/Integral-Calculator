@@ -1,7 +1,3 @@
-import tkinter as tk
-from tkinter import ttk
-
-
 THEMES = {
     "Light": {
         "bg": "#f6f7f9",
@@ -38,7 +34,15 @@ THEMES = {
 }
 
 
+def _tk_modules():
+    import tkinter as tk
+    from tkinter import ttk
+
+    return tk, ttk
+
+
 def apply_tk_theme(root, style, theme_name):
+    tk, _ttk = _tk_modules()
     theme = THEMES.get(theme_name, THEMES["Light"])
     try:
         style.theme_use("clam")
@@ -80,6 +84,7 @@ def apply_tk_theme(root, style, theme_name):
 
 
 def _apply_widget_theme(widget, theme):
+    tk, ttk = _tk_modules()
     if isinstance(widget, (tk.Tk, tk.Toplevel, tk.Frame)):
         _try_config(widget, bg=theme["bg"])
     elif isinstance(widget, tk.Label):
@@ -151,6 +156,7 @@ def button_palette(theme, text):
 
 
 def _try_config(widget, **kwargs):
+    tk, _ttk = _tk_modules()
     try:
         widget.config(**kwargs)
     except tk.TclError:

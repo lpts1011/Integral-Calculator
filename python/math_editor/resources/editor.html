@@ -1,0 +1,249 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="light dark">
+  <script src="./mathlive.min.js"></script>
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --editor-bg: #ffffff;
+      --editor-fg: #1f2937;
+      --editor-border: #9aa2ad;
+      --editor-focus: #3867d6;
+    }
+    :root[data-theme="Dark"] {
+      color-scheme: dark;
+      --editor-bg: #111827;
+      --editor-fg: #f3f4f6;
+      --editor-border: #64748b;
+      --editor-focus: #60a5fa;
+    }
+    html, body { margin: 0; padding: 0; background: transparent; }
+    body { display: flex; flex-direction: column; gap: 6px; }
+    .math-field-container {
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+    .math-field-container > label {
+      color: var(--editor-fg);
+      font: 12px system-ui, sans-serif;
+      line-height: 16px;
+    }
+    math-field {
+      box-sizing: border-box;
+      display: block;
+      min-height: 38px;
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid var(--editor-border);
+      border-radius: 2px;
+      background: var(--editor-bg);
+      color: var(--editor-fg);
+      font-size: 20px;
+    }
+    math-field:focus-within { border-color: var(--editor-focus); }
+    math-field::part(virtual-keyboard-toggle),
+    math-field::part(menu-toggle) { display: none; }
+    body.integral-layout {
+      display: grid;
+      grid-template-columns: 58px minmax(82px, 112px) auto 38px minmax(0, 1fr);
+      grid-template-areas:
+        "integral upper integrand differential empty"
+        "integral lower integrand differential empty"
+        "parameters parameters parameters parameters parameters"
+        "split split split split split";
+      align-items: start;
+      column-gap: 8px;
+      row-gap: 6px;
+    }
+    body.integral-layout::before {
+      content: "∫";
+      grid-area: integral;
+      align-self: center;
+      justify-self: center;
+      color: var(--editor-fg);
+      font: 72px/1 serif;
+    }
+    body.integral-layout::after {
+      content: "dx";
+      grid-area: differential;
+      align-self: center;
+      color: var(--editor-fg);
+      font: 24px/1 system-ui, sans-serif;
+    }
+    body.integral-layout [data-slot="upper-bound"] { grid-area: upper; }
+    body.integral-layout [data-slot="lower-bound"] { grid-area: lower; }
+    body.integral-layout [data-slot="integrand"] { grid-area: integrand; }
+    body.integral-layout [data-slot="parameters"] { grid-area: parameters; }
+    body.integral-layout [data-slot="split-points"] { grid-area: split; }
+    body.integral-layout [data-slot="integrand"] {
+      align-self: center;
+      justify-self: start;
+      width: 220px;
+      max-width: 100%;
+    }
+    body.integral-layout [data-slot="integrand"] math-field {
+      min-height: 44px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+<script>
+(() => {
+  const fields = new Map();
+  let bridge = null;
+  let lastContentHeight = 0;
+  let heightTimer = null;
+
+  function reportContentHeight() {
+    if (!bridge) return;
+    if (heightTimer !== null) return;
+    heightTimer = setTimeout(() => {
+      heightTimer = null;
+      const bodyTop = document.body.getBoundingClientRect().top;
+      const containers = Array.from(
+        document.querySelectorAll('.math-field-container')
+      );
+      const contentBottom = containers.reduce(
+        (bottom, container) => Math.max(
+          bottom,
+          container.getBoundingClientRect().bottom
+        ),
+        bodyTop
+      );
+      const height = Math.ceil(contentBottom - bodyTop);
+      if (height > 0 && height !== lastContentHeight) {
+        lastContentHeight = height;
+        bridge.contentHeightChanged(height);
+      }
+    }, 0);
+  }
+
+  const contentResizeObserver = new ResizeObserver(reportContentHeight);
+  contentResizeObserver.observe(document.body);
+
+  function updateAdaptiveWidth(field) {
+    const container = field.closest('.math-field-container');
+    if (!container || container.dataset.slot !== 'integrand') return;
+    const ascii = field.getValue('ascii-math') || '';
+    const latex = field.getValue('latex') || '';
+    const complexity = Math.max(ascii.length, Math.ceil(latex.length * 0.72));
+    const available = Math.max(190, window.innerWidth - 256);
+    const width = Math.max(190, Math.min(560, available, 112 + complexity * 11));
+    container.style.width = `${width}px`;
+  }
+
+  function notifyInput(field) {
+    updateAdaptiveWidth(field);
+    if (bridge) bridge.inputChanged(field.dataset.fieldId, field.getValue('ascii-math'));
+  }
+
+  window.addEventListener('resize', () => {
+    fields.forEach(updateAdaptiveWidth);
+    reportContentHeight();
+  });
+
+  function createField({id, value, disabled, placeholder, label, slot}) {
+    if (fields.has(id)) return;
+    const container = document.createElement('div');
+    container.className = 'math-field-container';
+    if (slot) {
+      container.dataset.slot = slot;
+      document.body.classList.add('integral-layout');
+    }
+    const visibleLabel = document.createElement('label');
+    const elementId = `math-field-${id}`;
+    visibleLabel.id = `${elementId}-label`;
+    visibleLabel.htmlFor = elementId;
+    visibleLabel.textContent = label || id.replaceAll('_', ' ');
+    const field = document.createElement('math-field');
+    field.id = elementId;
+    field.dataset.fieldId = id;
+    field.mathVirtualKeyboardPolicy = 'manual';
+    field.setAttribute('math-virtual-keyboard-policy', 'manual');
+    field.setAttribute('aria-labelledby', visibleLabel.id);
+    field.setAttribute('aria-label', visibleLabel.textContent);
+    if (placeholder) field.setAttribute('placeholder', placeholder);
+    field.disabled = Boolean(disabled);
+    field.setValue(value || '', {format: 'ascii-math', silenceNotifications: true});
+    field.addEventListener('input', () => notifyInput(field));
+    field.addEventListener('focusin', () => {
+      if (bridge) bridge.focused(id);
+    });
+    field.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        if (bridge) bridge.submitted(id);
+      } else if (event.key === 'Tab') {
+        event.preventDefault();
+        if (bridge) bridge.focusNext(id, event.shiftKey);
+      }
+    });
+    fields.set(id, field);
+    container.appendChild(visibleLabel);
+    container.appendChild(field);
+    document.body.appendChild(container);
+    contentResizeObserver.observe(container);
+    updateAdaptiveWidth(field);
+    reportContentHeight();
+  }
+
+  window.mathEditor = {
+    createField,
+    setValue(id, value) {
+      const field = fields.get(id);
+      if (field) {
+        field.setValue(value || '', {format: 'ascii-math', silenceNotifications: true});
+        updateAdaptiveWidth(field);
+      }
+    },
+    setEnabled(id, enabled) {
+      const field = fields.get(id);
+      if (field) field.disabled = !enabled;
+    },
+    setTheme(name) {
+      document.documentElement.dataset.theme = name || '';
+    },
+    focus(id) {
+      const field = fields.get(id);
+      if (field) field.focus();
+    },
+    executeCommand(id, command) {
+      const field = fields.get(id);
+      if (field && command) {
+        field.focus();
+        field.executeCommand(command);
+      }
+    },
+    insertLatex(id, latex) {
+      const field = fields.get(id);
+      if (!field || !latex) return;
+      field.focus();
+      field.insert(latex, {
+        format: 'latex',
+        insertionMode: 'replaceSelection',
+        selectionMode: 'placeholder',
+      });
+      updateAdaptiveWidth(field);
+    },
+    value(id) {
+      const field = fields.get(id);
+      return field ? field.getValue('ascii-math') : '';
+    },
+  };
+
+  new QWebChannel(qt.webChannelTransport, (channel) => {
+    bridge = channel.objects.mathEditorBridge;
+    bridge.editorReady();
+    reportContentHeight();
+  });
+})();
+</script>
+</body>
+</html>

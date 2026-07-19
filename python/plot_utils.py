@@ -1,9 +1,9 @@
-import tkinter as tk
+import re
 
 import calengine as np
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.figure import Figure
 
+from formatting import pretty_math_str
 from numeric_methods import build_numeric_callable, numeric_values
 from parser_utils import evaluate_symbolic_function
 
@@ -14,8 +14,26 @@ def evaluate_function(x_vals, func_str: str):
     return numeric_values(f, np.array(x_vals, dtype=float))
 
 
+def format_plot_expression(func_str: str) -> str:
+    """Return readable mathematical notation without changing evaluation input."""
+    try:
+        display = pretty_math_str(evaluate_symbolic_function(func_str))
+    except Exception:
+        display = str(func_str).replace("**", "^").replace("pi", "π")
+    display = re.sub(
+        r"e\^\(([+-]?(?:[A-Za-z_]\w*|\d+(?:\.\d+)?))\)",
+        r"e^\1",
+        display,
+    )
+    return display.replace("*", " · ")
+
+
 def init_plot_area(parent_frame):
-    fig = plt.Figure(figsize=(8, 5.2), dpi=100)
+    import tkinter as tk
+
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+
+    fig = Figure(figsize=(8, 5.2), dpi=100)
     ax = fig.add_subplot(111)
     ax.set_title("Function Graph")
     ax.grid(True)
@@ -68,7 +86,8 @@ def plot_embedded(
         positive_color = theme["success"] if theme else "tab:green"
         negative_color = theme["danger"] if theme else "tab:red"
         guide_color = theme["muted"] if theme else "0.35"
-        ax.plot(x_vals, y_vals, color=line_color, label=f"f(x) = {func_str}")
+        display_func = format_plot_expression(func_str)
+        ax.plot(x_vals, y_vals, color=line_color, label=f"f(x) = {display_func}")
         if shade:
             finite_mask = np.isfinite(y_vals)
             positive_mask = finite_mask & (y_vals >= 0)
@@ -110,7 +129,7 @@ def plot_embedded(
                 zorder=3,
                 label="Zeros",
             )
-        ax.set_title(f"Function Graph: {func_str}")
+        ax.set_title(f"Function Graph: {display_func}")
         ax.set_xlabel("x")
         ax.set_ylabel("f(x)")
         if theme:

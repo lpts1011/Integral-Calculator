@@ -1,10 +1,9 @@
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import ttk
 
 import matplotlib
 matplotlib.use("TkAgg")
 
-from favorites_store import load_favorites, save_favorites
 from history_utils import add_history_record
 from i18n import ui_text
 from language_ui import refresh_usage_window, show_usage_window
@@ -26,7 +25,6 @@ class IntegralCalculatorApp:
         self.last_raw_result_type = None
         self.last_numeric_value = None
         self.last_record = None
-        self.favorites = load_favorites()
         self.theme_name = "Light"
         self.theme = THEMES[self.theme_name]
         self.style = ttk.Style(self.root)
@@ -38,15 +36,11 @@ class IntegralCalculatorApp:
         self.tab3 = ImproperIntegralTab(self, self.tab3_frame)
 
         self.usage_button.config(command=self.show_usage_instructions)
-        self.insert_favorite_button.config(command=self.insert_favorite)
-        self.add_favorite_button.config(command=self.add_current_favorite)
         self.insert_template_button.config(command=self.insert_template)
-        self.export_button.config(command=self.export_last_result)
         self.steps_button.config(command=self.show_steps)
         self.suggest_button.config(command=self.show_input_suggestions)
         self.math_tools_button.config(command=self.show_math_tools)
         self.lang_button.bind("<<ComboboxSelected>>", lambda event: self.change_language(self.lang_var.get()))
-        self.favorite_dropdown.bind("<Return>", lambda event: self.insert_favorite())
         self.theme_dropdown.bind("<<ComboboxSelected>>", lambda event: self.apply_theme(self.theme_var.get()))
         self.history_listbox.bind("<<ListboxSelect>>", self.refill_from_history)
         self.history_listbox.bind("<Double-Button-1>", self.refill_and_compute_from_history)
@@ -73,12 +67,8 @@ class IntegralCalculatorApp:
             self.notebook.tab(tab_index, text=tab_text)
 
         self.usage_button.config(text=text["usage"])
-        self.favorite_label.config(text=text["favorite"])
         self.template_label.config(text=text["template"])
-        self.insert_favorite_button.config(text=text["insert_favorite"])
         self.insert_template_button.config(text=text["insert_template"])
-        self.add_favorite_button.config(text=text["add_favorite"])
-        self.export_button.config(text=text["export_last"])
         self.steps_button.config(text=text.get("show_steps", "Show Steps"))
         self.suggest_button.config(text=text.get("suggest_input", "Suggest Input"))
         self.math_tools_button.config(text=text.get("math_tools", "Math Tools"))
@@ -156,46 +146,8 @@ class IntegralCalculatorApp:
     def clear_plot(self):
         clear_plot(self.plot_ax, self.plot_canvas, self.theme)
 
-    def insert_favorite(self):
-        favorite = self.favorite_var.get().strip()
-        if not favorite:
-            return
-        self.active_tab().set_function_text(favorite)
-
-    def add_current_favorite(self):
-        function_text = self.active_tab().get_function_text().strip()
-        if not function_text:
-            messagebox.showinfo(self.text["favorite_title"], self.text["favorite_empty"])
-            return
-        if function_text not in self.favorites:
-            self.favorites.insert(0, function_text)
-            self.favorites = self.favorites[:50]
-            save_favorites(self.favorites)
-            self.favorite_dropdown.config(values=self.favorites)
-        self.favorite_var.set(function_text)
-        messagebox.showinfo(self.text["favorite_title"], self.text["favorite_saved"])
-
     def insert_template(self):
         self.active_tab().set_function_text(template_value(self.template_var.get()))
-
-    def export_last_result(self):
-        if not self.last_record:
-            messagebox.showinfo(self.text["export_title"], self.text["export_empty"])
-            return
-
-        from export_utils import build_latex_export, build_markdown_export
-
-        markdown = build_markdown_export(self.last_record)
-        latex = build_latex_export(self.last_record)
-        window = tk.Toplevel(self.root)
-        window.title(self.text["export_title"])
-        text = tk.Text(window, width=90, height=24)
-        text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        content = f"Markdown\n\n{markdown}\n\nLaTeX\n\n{latex}"
-        text.insert("1.0", content)
-        text.focus_set()
-        self.root.clipboard_clear()
-        self.root.clipboard_append(content)
 
     def show_steps(self):
         from step_explainer import build_steps_for_record

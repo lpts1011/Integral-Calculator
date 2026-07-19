@@ -2,7 +2,8 @@
 
 Integral Calculator is a desktop calculus application available in two native project editions:
 
-- **Python edition**: the reference implementation with the broadest symbolic-mathematics coverage.
+- **Python edition**: the actively developed PySide6 reference implementation
+  with the broadest symbolic-mathematics coverage.
 - **C++ edition**: a Qt 6 implementation focused on native execution speed and a self-contained macOS application.
 
 Both editions provide basic, advanced, and improper integration workflows, numerical methods, plotting, calculation history, mathematical tools, themes, and multilingual interface support. The C++ edition implements the same feature categories, while some advanced symbolic expressions can still produce different forms or numerical fallbacks. See [`cpp/PARITY.md`](cpp/PARITY.md) for the precise parity status.
@@ -12,12 +13,13 @@ Both editions provide basic, advanced, and improper integration workflows, numer
 - Definite and indefinite integration
 - Improper integrals with infinite limits
 - Rectangle, trapezoidal, Simpson, Simpson 3/8, Romberg, Gaussian quadrature, adaptive Simpson, and Monte Carlo methods
-- Real-time rendered integral preview
+- Directly editable, typeset mathematical input fields
+- Floating function-focused mathematical keyboard
 - Function parameters and manual split points
-- Function plotting and calculation history
+- Function plotting with human-readable mathematical notation and calculation history
+- Rendered exact results, numerical results, total time, and symbolic steps
 - Method recommendations and comparison
-- Markdown and LaTeX export
-- Favorites, templates, input suggestions, and light/dark themes
+- Input suggestions, light/dark themes, and multilingual controls
 - Mathematical tools for Taylor and Fourier approximations, Laplace transforms, ODEs, geometry, convergence, error analysis, multiple integrals, and parameter sensitivity
 - English, Simplified Chinese, Traditional Chinese, Spanish, French, Japanese, Korean, Arabic, and Hindi interface options
 
@@ -48,7 +50,9 @@ cd python
 python3 run_tests.py
 ```
 
-The current suite contains 45 tests covering parsing, numerical and symbolic integration, mathematical tools, recommendations, internationalization, and GUI-layer behavior.
+The current suite contains 142 tests covering parsing, numerical and symbolic
+integration, mathematical tools, recommendations, internationalization,
+PySide6 workflows, and real Qt WebEngine rendering.
 
 ## C++ Edition
 
@@ -88,7 +92,10 @@ Release tags follow [Semantic Versioning](https://semver.org/) and use the `vMAJ
 
 ## Project Status
 
-Version 4.0.0 introduces the dual Python/C++ repository. Python remains the behavioral reference for advanced symbolic mathematics. C++ parity is tracked openly rather than overstated.
+Version 4.0.0 introduced the dual Python/C++ repository. Active development now
+focuses on the Python edition, which remains the behavioral reference for
+advanced symbolic mathematics. The C++ edition remains available at its v4
+parity baseline, with its limitations documented rather than overstated.
 
 ## License
 

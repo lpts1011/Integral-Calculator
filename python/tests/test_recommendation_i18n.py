@@ -26,18 +26,12 @@ class RecommendationI18nTests(unittest.TestCase):
 
     def test_all_languages_include_new_ui_keys(self):
         required = {
-            "favorite",
             "template",
-            "insert_favorite",
             "insert_template",
-            "add_favorite",
             "theme",
             "parameters",
             "split_points",
             "compare_methods",
-            "export_last",
-            "export_title",
-            "export_empty",
             "comparison_title",
             "apply_recommendation",
             "show_steps",

@@ -1,0 +1,49 @@
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: python
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-windows.txt
+
+      - name: Run tests
+        run: |
+          python -c "import pathlib, py_compile; [py_compile.compile(str(path), doraise=True) for pattern in ('*.py', 'locales/*.py', 'tests/*.py') for path in pathlib.Path('.').glob(pattern)]"
+          python run_tests.py
+
+      - name: Build Windows application
+        run: .\build_windows_app.bat
+
+      - name: Package Windows application
+        shell: pwsh
+        run: Compress-Archive -Path "dist\Integral_Calculator_Python" -DestinationPath "dist\Integral_Calculator_Python_Windows.zip" -Force
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Integral-Calculator-Windows
+          path: "python/dist/Integral_Calculator_Python_Windows.zip"

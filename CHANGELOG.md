@@ -2,6 +2,27 @@
 
 All notable project changes are recorded here. Versions follow Semantic Versioning.
 
+## [Unreleased] - 2026-07-20
+
+### Added
+
+- Added direct, editable MathLive fields across all Python integration workflows.
+- Added a floating function-focused mathematical keyboard with cursor-aware insertion.
+- Added a shared rendered result workspace for exact values, numerical values, total calculation time, and human-readable symbolic steps.
+- Added offline MathLive resources and real Qt WebEngine regression coverage.
+
+### Changed
+
+- Migrated the active Python desktop interface from Tkinter to PySide6 while preserving the existing calculation engine.
+- Improved the default Advanced Integration layout and made the input/result split vertically adjustable.
+- Changed graph titles and legends to display `e^x`, `x^2`, and centered multiplication instead of internal `exp(x)`, `x**2`, and `*` notation.
+- Replaced the template selector with the mathematical keyboard and removed the low-use favorites and result-export workflows from Python.
+
+### Verified
+
+- Python: 142 tests passed, including 10 real Qt WebEngine rendering tests.
+- Python macOS application: rebuilt as a signed arm64 bundle and launch-checked.
+
 ## [4.0.0] - 2026-07-13
 
 ### Added

@@ -42,21 +42,6 @@ def build_main_window(app):
     app.usage_button = ttk.Button(app.toolbar_row1, text="Usage Instructions")
     app.usage_button.pack(side=tk.LEFT, padx=8)
 
-    app.favorite_label = ttk.Label(app.toolbar_row1, text="Favorite:")
-    app.favorite_label.pack(side=tk.LEFT, padx=(12, 4))
-    app.favorite_var = tk.StringVar(value=app.favorites[0] if app.favorites else "")
-    app.favorite_dropdown = ttk.Combobox(
-        app.toolbar_row1,
-        textvariable=app.favorite_var,
-        values=app.favorites,
-        width=18,
-    )
-    app.favorite_dropdown.pack(side=tk.LEFT)
-    app.insert_favorite_button = ttk.Button(app.toolbar_row1, text="Insert")
-    app.insert_favorite_button.pack(side=tk.LEFT, padx=(4, 0))
-    app.add_favorite_button = ttk.Button(app.toolbar_row1, text="Add Current")
-    app.add_favorite_button.pack(side=tk.LEFT, padx=(4, 8))
-
     app.template_label = ttk.Label(app.toolbar_row2, text="Template:")
     app.template_label.pack(side=tk.LEFT, padx=(0, 4))
     app.template_var = tk.StringVar(value=template_names()[0])
@@ -70,9 +55,6 @@ def build_main_window(app):
     app.template_dropdown.pack(side=tk.LEFT)
     app.insert_template_button = ttk.Button(app.toolbar_row2, text="Insert Template")
     app.insert_template_button.pack(side=tk.LEFT, padx=(4, 8))
-
-    app.export_button = ttk.Button(app.toolbar_row2, text="Export Last")
-    app.export_button.pack(side=tk.LEFT, padx=(0, 8))
 
     app.steps_button = ttk.Button(app.toolbar_row2, text="Show Steps")
     app.steps_button.pack(side=tk.LEFT, padx=(0, 8))

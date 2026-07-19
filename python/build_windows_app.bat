@@ -27,4 +27,4 @@ if errorlevel 1 (
 if errorlevel 1 exit /b 1
 
 echo.
-echo Built: dist\Integral Calculator\Integral Calculator.exe
+echo Built: dist\Integral_Calculator_Python\Integral_Calculator_Python.exe

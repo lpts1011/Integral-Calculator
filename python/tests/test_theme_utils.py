@@ -14,7 +14,7 @@ class ThemeUtilsTests(unittest.TestCase):
     def test_default_button_uses_default_button_palette(self):
         theme = THEMES["Light"]
 
-        self.assertEqual(button_palette(theme, "Export Last"), (theme["button_bg"], theme["button_fg"]))
+        self.assertEqual(button_palette(theme, "Show Steps"), (theme["button_bg"], theme["button_fg"]))
 
 
 if __name__ == "__main__":
