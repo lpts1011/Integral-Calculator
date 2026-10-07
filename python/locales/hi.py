@@ -27,24 +27,15 @@ UI = {'title': 'समाकलन गणक',
  'func': 'लक्ष्य फलन दर्ज करें:',
  'numerical_method': 'संख्यात्मक विधि:',
  'history': 'इतिहास:',
- 'favorite': 'पसंदीदा:',
  'template': 'Template:',
- 'insert_favorite': 'डालें',
  'insert_template': 'Insert Template',
- 'add_favorite': 'वर्तमान जोड़ें',
  'theme': 'थीम:',
  'parameters': 'Parameters:',
  'split_points': 'Split points:',
  'compare_methods': 'Compare Methods',
- 'export_last': 'Export Last',
- 'export_title': 'Export Result',
- 'export_empty': 'No calculation result is available.',
  'comparison_title': 'Numerical Method Comparison',
  'apply_recommendation': 'सुझाव लागू करें',
  'time': 'समय',
- 'favorite_title': 'पसंदीदा',
- 'favorite_empty': 'पसंदीदा में जोड़ने से पहले कोई फलन दर्ज करें।',
- 'favorite_saved': 'फलन पसंदीदा में सहेजा गया।',
  'recommend_enter_function': 'सुझाव: पहले कोई फलन दर्ज करें।',
  'recommend_complete_limits': 'सुझाव: निश्चित समाकलन के लिए दोनों सीमाएँ भरें, या अनिश्चित समाकलन के लिए दोनों खाली '
                               'छोड़ें।',
@@ -61,3 +52,7 @@ UI = {'title': 'समाकलन गणक',
  'recommend_smooth_nonlinear': 'सुझाव: चिकना nonlinear फलन; Gaussian Quadrature आम तौर पर प्रभावी है।',
  'recommend_polynomial': 'सुझाव: polynomial जैसा चिकना फलन; Simpson अच्छा default है।',
  'recommend_default': 'सुझाव: सीमित और चिकना अंतराल; Simpson अच्छा default है।'}
+
+
+# Recommendations match the v5 algorithms.
+UI.update({'recommend_oscillatory': 'रैखिक चरण वाला दोलन मिला; Oscillatory Quadrature आज़माएँ।', 'recommend_steep': 'तेज़ बदलाव; Adaptive Gauss-Kronrod आज़माएँ।', 'recommend_irregular_oscillation': 'जटिल दोलन; Adaptive Gauss-Kronrod आज़माएँ और ज़रूरत पर अंतराल बाँटें।'})

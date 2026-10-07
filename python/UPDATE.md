@@ -1,5 +1,110 @@
 # Update Log
 
+## 2026-08-05
+
+- Removed numbered macOS application links that all pointed to the same installed
+  application, while retaining the canonical link and installed app.
+- Removed reproducible build output, stale standalone copies, and Python bytecode
+  caches from the project tree.
+- Removed the inactive Tkinter interface and its isolated helper modules. The
+  production PySide6 interface and every user-facing calculator workflow remain
+  unchanged.
+- Deferred loading the optional textual step explainer until the Show Steps
+  command is used, reducing normal startup work without changing its output.
+- Deferred construction of the hidden mathematical keyboard until its first
+  use, avoiding creation of its complete button grid during normal startup.
+- Protected the normalized Qt WebEngine framework layout from an empty
+  directory that could be recreated on first launch and invalidate later
+  macOS signature checks, including when the app is extracted from the
+  standalone launcher.
+- Kept all local engine components and third-party notices that are required by
+  integration, simplification, plotting, Math Tools, or software licensing.
+
+## 2026-07-21
+
+- Added a dedicated Python environment with the complete GUI runtime, including
+  PySide6, Matplotlib, SciPy, and their required dependencies.
+- Located the environment outside macOS-protected Desktop folders so Qt can
+  discover its native platform plugins reliably.
+- Configured Visual Studio Code to use the dedicated environment automatically.
+- Made the source entry point relaunch through the supported environment when
+  it is started by a Python installation that does not provide PySide6.
+- Excluded optional project-local environments from source control and
+  standalone payloads so development dependencies cannot increase release size.
+
+## 2026-07-20
+
+- Added a formal macOS DMG release workflow with Developer ID signing,
+  Hardened Runtime, Apple notarization, ticket stapling, Gatekeeper assessment,
+  architecture detection, and release checksums.
+- Added the minimum Qt WebEngine JIT entitlements required by the public macOS
+  build while keeping the normal local build on its existing ad-hoc path.
+- Made the macOS bundle version configurable and changed its Finder-facing name
+  to `Integral Calculator` without changing the executable or runtime behavior.
+- Added regression checks that prevent a public release script from omitting
+  signing, notarization, stapling, or Gatekeeper verification.
+- Rebuilt `Integral_Calculator_Standalone.py` from the complete current Python
+  source so its interface, mathematical editor, keyboard, result workspace,
+  graph notation, and calculation behavior match the normal edition.
+- Embedded the signed arm64 macOS runtime so the standalone file also starts
+  when the selected Python installation does not provide PySide6 or Matplotlib.
+- Added a deterministic standalone generator and an exact payload-parity test
+  so future source changes can no longer leave the single-file edition stale.
+- Changed graph titles and legends to use human-readable mathematical notation.
+  Exponentials now appear as `e^x` instead of `exp(x)`, powers use `^` instead
+  of `**`, and multiplication is shown with a centered dot.
+- Kept the original parser expression unchanged for numerical sampling, so this
+  display-only improvement does not alter graph values or integration results.
+- Added regression coverage for exponential and power notation in both the
+  graph title and legend.
+- Automated coverage now includes 145 passing tests, including 10 real
+  WebEngine rendering checks.
+
+## 2026-07-18
+
+- Replaced the separate text-entry and preview workflow with direct, editable,
+  typeset mathematical fields throughout Basic, Advanced, Improper Integral,
+  and Math Tools.
+- Migrated the production desktop interface from Tkinter to PySide6 while
+  preserving the existing calculation engine, methods, results, plotting,
+  history, steps, suggestions, themes, and languages.
+- Added a fully offline MathLive editor bundle with local fonts, integrity
+  checks, secure runtime staging, and no network dependency.
+- Added keyboard-first editing, focus navigation, copy and paste, undo and redo,
+  long-expression handling, and localized field labels.
+- Replaced the template selector and Insert Template controls with a floating,
+  always-on-top mathematical keyboard focused on common functions, cursor
+  controls, logarithms, exponentials, powers, roots, fractions, constants, and
+  infinity.
+- Removed the low-use favorites and result-export workflows, including their
+  storage, formatting, dialogs, translations, legacy UI hooks, and tests.
+- Removed standalone digit keys from the mathematical keyboard and moved
+  frequently used functions to its first tab.
+- Added cursor-aware MathLive insertion so keyboard entries replace the current
+  selection or appear at the active caret without overwriting the expression.
+- Moved both integration bounds to the right of the integral symbol and made
+  the integrand editor grow with its content while keeping `dx` attached to its
+  trailing edge.
+- Made the Advanced Integration editor report its rendered content height to
+  the native layout so all five fields remain visible without wasting the
+  available vertical space or showing an unnecessary inner scrollbar.
+- Added a shared rendered result workspace beneath the integration tabs with
+  separate exact-result, integral-result, and total-time fields.
+- Added automatically generated, human-readable symbolic integration steps
+  with locally rendered formulas for definite, indefinite, and improper
+  integrals. Step generation runs in the background so it cannot block the UI.
+- Made the input and result regions vertically resizable while keeping the full
+  Advanced Integration editor visible at the default window size.
+- Ported all existing Math Tools pages to the same live editor and retained
+  insertion into the active calculator tab.
+- Updated macOS and Windows packaging to include PySide6 Qt WebEngine, QtAgg,
+  and all local editor resources.
+- Added automated parity, resource, lifecycle, localization, and packaging
+  tests for the new interface.
+- Automated coverage now includes 141 tests, including real WebEngine checks for
+  caret insertion, function placeholders, adaptive sizing, integral layout,
+  localized results, and rendered symbolic steps.
+
 ## 2026-06-03
 
 - Added Taylor polynomial expansion with configurable expansion point and order.

@@ -40,7 +40,38 @@ def solving_source_candidates():
     return _unique_paths(candidates)
 
 
+class _CompatibleNumpyFinder:
+    """Use the installed NumPy when the bundled native ABI does not match."""
+    def __init__(self, excluded):
+        self.excluded = excluded
+
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname != "numpy":
+            return None
+        from importlib.machinery import PathFinder
+        paths = [item for item in sys.path if Path(item or os.getcwd()).resolve() not in self.excluded]
+        return PathFinder.find_spec(fullname, paths)
+
+
+def prefer_compatible_numpy():
+    if getattr(sys, "frozen", False):
+        return
+    from importlib.machinery import EXTENSION_SUFFIXES
+    excluded = set()
+    for root in solving_source_candidates():
+        core = root / "numpy" / "_core"
+        if not core.is_dir():
+            continue
+        supported = sys.platform == "darwin" and any(
+            (core / ("_multiarray_umath" + suffix)).is_file() for suffix in EXTENSION_SUFFIXES)
+        if not supported:
+            excluded.add(root.resolve())
+    if excluded and not any(isinstance(finder, _CompatibleNumpyFinder) for finder in sys.meta_path):
+        sys.meta_path.insert(0, _CompatibleNumpyFinder(excluded))
+
+
 def prefer_local_solving_source():
+    prefer_compatible_numpy()
     for source_path in solving_source_candidates():
         if not (source_path / SOLVING_PACKAGE / "__init__.py").is_file():
             continue

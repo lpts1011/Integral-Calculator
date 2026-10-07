@@ -1,6 +1,6 @@
 # Python and C++ parity checklist
 
-The Python implementation in `../versionpython` is the reference behavior.
+The Python implementation in `../python` is the reference behavior.
 A feature is complete only when its C++ behavior and tests match that reference.
 
 Status values:
@@ -74,3 +74,16 @@ Status values:
 | --- | --- | --- |
 | Native macOS application | Complete | Developer ID signing and notarization are release tasks |
 | Windows application | Missing | Add a Windows build and deployment workflow |
+
+## Python v5.0.0 additions
+
+The status tables above describe the existing C++ scope before Python v5.0.0.
+The following additions have **not been ported to C++**:
+
+- Auto/Gauss–Kronrod and weighted oscillatory selection with tolerance/work budgets.
+- Narrow-peak structural splitting and protected Romberg convergence.
+- Evaluation diagnostics and independently validated method comparisons.
+- The sampled-signal CSV/noise/convolution/Fourier reconstruction workspace.
+- The reusable Python symbolic worker and new cancellation controls.
+
+The v5 release assets target the Python edition. No new C++ binary is claimed.

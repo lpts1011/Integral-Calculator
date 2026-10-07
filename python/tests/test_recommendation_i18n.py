@@ -18,7 +18,7 @@ class RecommendationI18nTests(unittest.TestCase):
 
     def test_oscillatory_sampling_recommends_adaptive_simpson(self):
         recommendation = recommend_tab2_method("sin(50*x)", "0", "1")
-        self.assertEqual(recommendation.method, "Adaptive Simpson")
+        self.assertEqual(recommendation.method, "Oscillatory Quadrature")
 
     def test_friendly_error_suggests_function_parentheses(self):
         message = friendly_error_message("Only variable x is allowed.", "sinx", "0", "1")
@@ -26,18 +26,12 @@ class RecommendationI18nTests(unittest.TestCase):
 
     def test_all_languages_include_new_ui_keys(self):
         required = {
-            "favorite",
             "template",
-            "insert_favorite",
             "insert_template",
-            "add_favorite",
             "theme",
             "parameters",
             "split_points",
             "compare_methods",
-            "export_last",
-            "export_title",
-            "export_empty",
             "comparison_title",
             "apply_recommendation",
             "show_steps",

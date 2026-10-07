@@ -1,6 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-app_name = "Integral Calculator"
+import os
+
+app_name = "Integral_Calculator_Python"
+app_version = os.environ.get("APP_VERSION", "5.0.0").strip()
+if not app_version:
+    raise ValueError("APP_VERSION must not be empty")
 hiddenimports = [
     "locales.en",
     "locales.zh_cn",
@@ -11,7 +16,10 @@ hiddenimports = [
     "locales.fr",
     "locales.ar",
     "locales.hi",
-    "matplotlib.backends.backend_tkagg",
+    "matplotlib.backends.backend_qtagg",
+    "PySide6.QtWebChannel",
+    "PySide6.QtWebEngineCore",
+    "PySide6.QtWebEngineWidgets",
 ]
 
 a = Analysis(
@@ -22,16 +30,19 @@ a = Analysis(
         ("calengine", "calengine"),
         ("numpy", "numpy"),
         ("solving", "solving"),
+        ("math_editor/resources", "math_editor/resources"),
     ],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={
         "matplotlib": {
-            "backends": ["TkAgg"],
+            "backends": ["QtAgg"],
         },
     },
     runtime_hooks=[],
     excludes=[
+        "_tkinter",
+        "tkinter",
         "tests",
         "matplotlib.tests",
         "scipy._lib.tests",
@@ -99,11 +110,11 @@ app = BUNDLE(
     icon=None,
     bundle_identifier="com.peichili.integralcalculator",
     info_plist={
-        "CFBundleName": app_name,
-        "CFBundleDisplayName": app_name,
-        "CFBundleShortVersionString": "1.0.0",
-        "CFBundleVersion": "1.0.0",
+        "CFBundleName": "Integral Calculator",
+        "CFBundleDisplayName": "Integral Calculator",
+        "CFBundleShortVersionString": app_version,
+        "CFBundleVersion": app_version,
         "NSHighResolutionCapable": True,
-        "LSMinimumSystemVersion": "10.15",
+        "LSMinimumSystemVersion": "13.0",
     },
 )

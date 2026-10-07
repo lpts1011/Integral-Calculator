@@ -77,7 +77,7 @@ def recommend_tab2_method(func_str, lower_text, upper_text):
             point = f"{singularities[0]:.6g}"
             return MethodRecommendation(
                 "Numerical Integration",
-                "Adaptive Simpson",
+                "Adaptive Gauss-Kronrod",
                 "recommend_singularity",
                 {"point": point},
             )
@@ -88,25 +88,29 @@ def recommend_tab2_method(func_str, lower_text, upper_text):
             "recommend_invalid_function",
         )
 
+    from integration_engine import oscillatory_factor
+    factor = oscillatory_factor(expr)
+    if factor and abs(factor[2]*(upper-lower)) > 20:
+        return MethodRecommendation("Numerical Integration", "Oscillatory Quadrature", "recommend_oscillatory")
     width = abs(upper - lower)
     func_lower = func.lower()
     sample = _sample_function_behavior(expr, lower, upper)
     if sample["has_nonfinite"]:
         return MethodRecommendation(
             "Numerical Integration",
-            "Adaptive Simpson",
+            "Adaptive Gauss-Kronrod",
             "recommend_nonfinite_samples",
         )
     if sample["oscillation_score"] >= 12 or (any(name in func_lower for name in ("sin", "cos", "tan")) and width > 20):
         return MethodRecommendation(
             "Numerical Integration",
-            "Adaptive Simpson",
-            "recommend_oscillatory",
+            "Adaptive Gauss-Kronrod",
+            "recommend_irregular_oscillation",
         )
     if sample["variation_ratio"] > 100:
         return MethodRecommendation(
             "Numerical Integration",
-            "Adaptive Simpson",
+            "Adaptive Gauss-Kronrod",
             "recommend_steep",
         )
     if any(name in func_lower for name in ("exp", "sqrt", "log", "ln")):

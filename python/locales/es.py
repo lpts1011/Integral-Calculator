@@ -27,24 +27,15 @@ UI = {'title': 'Calculadora de Integrales',
  'func': 'Introducir función objetivo:',
  'numerical_method': 'Método numérico:',
  'history': 'Historial:',
- 'favorite': 'Favorito:',
  'template': 'Template:',
- 'insert_favorite': 'Insertar',
  'insert_template': 'Insert Template',
- 'add_favorite': 'Añadir actual',
  'theme': 'Tema:',
  'parameters': 'Parameters:',
  'split_points': 'Split points:',
  'compare_methods': 'Compare Methods',
- 'export_last': 'Export Last',
- 'export_title': 'Export Result',
- 'export_empty': 'No calculation result is available.',
  'comparison_title': 'Numerical Method Comparison',
  'apply_recommendation': 'Aplicar recomendación',
  'time': 'Tiempo',
- 'favorite_title': 'Favorito',
- 'favorite_empty': 'Introduce una función antes de añadirla a favoritos.',
- 'favorite_saved': 'Función guardada en favoritos.',
  'recommend_enter_function': 'Recomendación: introduce primero una función.',
  'recommend_complete_limits': 'Recomendación: completa ambos límites, o deja ambos vacíos para una integral '
                               'indefinida.',
@@ -63,3 +54,7 @@ UI = {'title': 'Calculadora de Integrales',
  'recommend_smooth_nonlinear': 'Recomendación: función no lineal suave; Gaussian Quadrature suele ser eficiente.',
  'recommend_polynomial': 'Recomendación: función suave similar a un polinomio; Simpson es una opción sólida.',
  'recommend_default': 'Recomendación: intervalo finito y suave; Simpson es una opción sólida.'}
+
+
+# Recommendations match the v5 algorithms.
+UI.update({'recommend_oscillatory': 'Oscilación de fase lineal: pruebe Oscillatory Quadrature.', 'recommend_steep': 'Variación rápida: pruebe Adaptive Gauss-Kronrod.', 'recommend_irregular_oscillation': 'Oscilación compleja: pruebe Adaptive Gauss-Kronrod y divida el intervalo si es necesario.'})

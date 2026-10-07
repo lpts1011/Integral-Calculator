@@ -1,6 +1,5 @@
 import unittest
 
-from input_suggestions import suggest_expression
 from math_extensions import (
     analyze_function_properties,
     analyze_singularity_and_breakpoints,
@@ -31,11 +30,6 @@ from step_explainer import STEPS_UNAVAILABLE_MESSAGE, build_steps_for_record
 
 
 class InteractiveMathToolsTests(unittest.TestCase):
-    def test_input_suggestions_fix_common_missing_parentheses(self):
-        self.assertIn("sin(x)", suggest_expression("sinx"))
-        self.assertIn("exp(x)", suggest_expression("e^x"))
-        self.assertIn("x^2", suggest_expression("x2"))
-
     def test_polar_area_template_computes_circle_area(self):
         result = compute_polar_area("2*cos(theta)", "-pi/2", "pi/2")
 

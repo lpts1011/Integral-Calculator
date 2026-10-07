@@ -3,3 +3,4 @@ mpmath
 numpy
 pyinstaller
 scipy
+PySide6==6.11.1

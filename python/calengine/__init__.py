@@ -8,6 +8,9 @@ calculator-owned entry point used by app code.
 
 from importlib import import_module
 
+from local_source_paths import prefer_compatible_numpy
+
+prefer_compatible_numpy()
 _backend = import_module("numpy")
 
 __version__ = _backend.__version__

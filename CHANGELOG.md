@@ -2,6 +2,40 @@
 
 All notable project changes are recorded here. Versions follow Semantic Versioning.
 
+## [5.0.0] - 2026-10-08
+
+### Added
+
+- Python signal workspace: CSV samples, cumulative integration, mean/RMS/energy,
+  noise/bias drift experiments, direct versus FFT convolution, and Fourier reconstruction.
+- Auto selection, adaptive Gauss–Kronrod and weighted oscillatory integration;
+  error tolerances, calculation budgets, cancellation, and evaluation diagnostics.
+- Reproducible integration benchmarks, analytic-reference fixtures, sample CSV,
+  and engineering workflow documentation.
+- Reusable isolated worker with timeout/cancellation recovery and large-result transport.
+- Root Windows CI/build workflow and portable installed-NumPy fallback.
+
+### Fixed
+
+- Infinite enumeration of periodic singularity sets and blocking recommendations.
+- False Romberg convergence for aliased high-frequency grids and missed quadratic
+  exponential narrow peaks.
+- Rejected integrable endpoint singularities, false plotted zeros at poles,
+  and unbounded allocations from tiny steps.
+- Convergence tables whose displayed sample count did not control the algorithm.
+- Deterministic segment error aggregation, independent Monte Carlo segment seeds,
+  and global tolerance checks.
+- Piecewise boundary values in closed-node rules and ambiguous comparison accuracy.
+
+### Changed
+
+- Moved mathematical tools to cancellable background jobs; reused compiled
+  functions, quadrature nodes, parsed parameter expressions, and symbolic work.
+- Synchronized existing offline MathLive/Qt interface and packaging improvements;
+  removed retired Tkinter production modules.
+- Rebuilt Python macOS app and standalone bundle as v5.0.0. C++ algorithms remain
+  unchanged; new Python features are documented as not yet ported.
+
 ## [4.0.0] - 2026-07-13
 
 ### Added

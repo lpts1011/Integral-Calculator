@@ -27,24 +27,15 @@ UI = {'title': "Calculateur d'intégrales",
  'func': 'Entrer la fonction cible :',
  'numerical_method': 'Méthode numérique :',
  'history': 'Historique :',
- 'favorite': 'Favori :',
  'template': 'Template:',
- 'insert_favorite': 'Insérer',
  'insert_template': 'Insert Template',
- 'add_favorite': 'Ajouter actuel',
  'theme': 'Thème :',
  'parameters': 'Parameters:',
  'split_points': 'Split points:',
  'compare_methods': 'Compare Methods',
- 'export_last': 'Export Last',
- 'export_title': 'Export Result',
- 'export_empty': 'No calculation result is available.',
  'comparison_title': 'Numerical Method Comparison',
  'apply_recommendation': 'Appliquer la recommandation',
  'time': 'Temps',
- 'favorite_title': 'Favori',
- 'favorite_empty': "Entrez une fonction avant de l'ajouter aux favoris.",
- 'favorite_saved': 'Fonction enregistrée dans les favoris.',
  'recommend_enter_function': "Recommandation : entrez d'abord une fonction.",
  'recommend_complete_limits': 'Recommandation : remplissez les deux bornes, ou laissez-les vides pour une intégrale '
                               'indéfinie.',
@@ -65,3 +56,7 @@ UI = {'title': "Calculateur d'intégrales",
                                'efficace.',
  'recommend_polynomial': "Recommandation : fonction lisse proche d'un polynôme; Simpson est un choix solide.",
  'recommend_default': 'Recommandation : intervalle fini et lisse; Simpson est un choix solide.'}
+
+
+# Recommendations match the v5 algorithms.
+UI.update({'recommend_oscillatory': 'Oscillation à phase linéaire : essayez Oscillatory Quadrature.', 'recommend_steep': 'Variation rapide : essayez Adaptive Gauss-Kronrod.', 'recommend_irregular_oscillation': 'Oscillation complexe : essayez Adaptive Gauss-Kronrod et subdivisez si nécessaire.'})

@@ -43,8 +43,11 @@ def numeric_scalar(func, x_value) -> float:
 
 def _build_numeric_callable_uncached(expr: Expr):
     try:
-        raw_func = lambdify(x_sym, expr, modules="numpy")
-        return lambda z: normalize_lambdified_output(raw_func(z), z)
+        raw_func = lambdify(x_sym, expr, modules="numpy", cse=True, docstring_limit=0)
+        def function(z):
+            return normalize_lambdified_output(raw_func(z), z)
+        function.expression = expr
+        return function
     except Exception as e:
         raise ValueError(f"Failed to build numeric function: {e}")
 
@@ -75,16 +78,37 @@ def _find_symbolic_singularities_uncached(expr, a, b):
         singular = singularities(expr, x_sym)
     except Exception:
         return []
+    from solving import FiniteSet, Union, ImageSet, S
+    import math
+    def bounded_points(values):
+        if isinstance(values, FiniteSet):
+            return list(values)
+        if isinstance(values, Union):
+            return [point for part in values.args for point in bounded_points(part)]
+        if isinstance(values, ImageSet) and values.base_set == S.Integers:
+            variable = values.lamda.variables[0]
+            formula = values.lamda.expr
+            slope = formula.diff(variable)
+            if slope.has(variable) or slope == 0:
+                return []
+            try:
+                step = float(slope.evalf())
+                offset = float(formula.subs(variable, 0).evalf())
+                ends = sorted(((lo-offset)/step, (hi-offset)/step))
+                first, last = math.ceil(ends[0]-1e-12), math.floor(ends[1]+1e-12)
+                if last-first > 20000:
+                    raise ValueError("Too many singularities in this interval; use a smaller interval.")
+                return [formula.subs(variable, n) for n in range(first, last+1)]
+            except (TypeError, OverflowError):
+                return []
+        return []  # An unresolved symbolic set must never be enumerated.
     points = []
-    try:
-        for point in singular:
-            if point.is_real is False:
-                continue
-            value = float(point.evalf())
-            if np.isfinite(value) and lo <= value <= hi:
-                points.append(value)
-    except TypeError:
-        return []
+    for point in bounded_points(singular):
+        if point.is_real is False:
+            continue
+        value = float(point.evalf())
+        if np.isfinite(value) and lo <= value <= hi:
+            points.append(value)
     return sorted(set(points))
 
 
@@ -101,15 +125,17 @@ def find_symbolic_singularities(expr, a, b):
     return list(_find_symbolic_singularities_cached(expr, a, b))
 
 
-def validate_numeric_integrand(expr, func, a, b):
+def validate_numeric_integrand(expr, func, a, b, *, allow_endpoint_singularities=False):
     singular_points = find_symbolic_singularities(expr, a, b)
+    if allow_endpoint_singularities:
+        singular_points = [v for v in singular_points if v != a and v != b]
     if singular_points:
         points = ", ".join(f"{p:.6g}" for p in singular_points[:5])
         raise ValueError(
             f"Function has a singularity inside the interval near x={points}. "
             "Split the interval or use a different method."
         )
-    ok, xbad = ensure_finite_on_probe(func, a, b)
+    ok, xbad = ensure_finite_on_probe(func, a, b, exclude_endpoints=allow_endpoint_singularities)
     if not ok:
         if xbad is None:
             raise ValueError("Function is not finite on the interval.")
@@ -119,7 +145,7 @@ def validate_numeric_integrand(expr, func, a, b):
         )
 
 
-def ensure_finite_on_probe(func, a, b, n_probe=101):
+def ensure_finite_on_probe(func, a, b, n_probe=101, *, exclude_endpoints=False):
     if not (np.isfinite(a) and np.isfinite(b)):
         return True, None
     xs = np.unique(np.concatenate([
@@ -127,7 +153,7 @@ def ensure_finite_on_probe(func, a, b, n_probe=101):
         np.array([a, b, 0.0, (a + b) / 2.0], dtype=float),
     ]))
     lo, hi = sorted((a, b))
-    xs = xs[(xs >= lo) & (xs <= hi)]
+    xs = xs[(xs > lo) & (xs < hi)] if exclude_endpoints else xs[(xs >= lo) & (xs <= hi)]
     try:
         vals = numeric_values(func, xs)
     except Exception:
@@ -158,31 +184,10 @@ def composite_simpson_38(func, a, b, n_intervals=300):
     return 3 * h / 8 * S
 
 
-def romberg_custom(func, a, b, max_level=8, tol=1e-8):
-    if not (np.isfinite(a) and np.isfinite(b)):
-        raise ValueError("Romberg requires finite limits.")
-    if a == b:
-        return 0.0
-    R = np.zeros((max_level+1, max_level+1), dtype=float)
-    fa = numeric_scalar(func, a)
-    fb = numeric_scalar(func, b)
-    if not (np.isfinite(fa) and np.isfinite(fb)):
-        raise ValueError("Function non-finite at endpoints for Romberg.")
-    h = (b - a)
-    R[0, 0] = 0.5 * h * (fa + fb)
-    for k in range(1, max_level+1):
-        n_intervals = 2**(k-1)
-        h *= 0.5
-        xs_mid = a + h * (np.arange(1, 2*n_intervals, 2))
-        fm = numeric_values(func, xs_mid)
-        if not np.all(np.isfinite(fm)):
-            raise ValueError("Function produced non-finite values in Romberg refinement.")
-        R[k, 0] = 0.5 * R[k-1, 0] + h * np.sum(fm)
-        for m in range(1, k+1):
-            R[k, m] = R[k, m-1] + (R[k, m-1] - R[k-1, m-1]) / (4**m - 1)
-        if abs(R[k, k] - R[k-1, k-1]) < tol * max(1.0, abs(R[k, k])):
-            return R[k, k]
-    return R[max_level, max_level]
+def romberg_custom(func, a, b, max_level=16, tol=1e-8):
+    from integration_engine import integrate_numerically
+    return integrate_numerically("Romberg",func,a,b,
+        options={"max_level":max_level,"epsabs":tol,"epsrel":tol})[0]
 
 
 def monte_carlo_stratified(func, a, b, n_samples=5000, n_strata=50, rng=None):
@@ -232,91 +237,16 @@ def gaussian_quadrature_fixed(f, a, b, n=64):
     return 0.5*(b - a)*np.dot(ws, vals)
 
 
-def compute_numerical_integral(integration_method, f_num, lower, upper, delta=None, progress_callback=None):
-    progress_callback = progress_callback or (lambda value: None)
-    error_estimate = None
-
-    if integration_method == "Monte Carlo":
-        n_samples = (8000 if delta is None
-                     else max(4000, int(abs(upper-lower)/max(delta, 1e-6))*20))
-        n_strata = min(200, max(20, int(np.sqrt(n_samples))))
-        rng = np.random.default_rng()
-        chunks = 10
-        part_estimates = []
-        for k in range(chunks):
-            est_k = monte_carlo_stratified(
-                f_num, lower, upper,
-                n_samples=max(1, n_samples//chunks),
-                n_strata=max(1, n_strata//chunks),
-                rng=rng,
-            )
-            part_estimates.append(est_k)
-            progress_callback(int((k+1)*100/chunks))
-        result = float(np.mean(part_estimates))
-        if len(part_estimates) > 1:
-            error_estimate = float(np.std(part_estimates, ddof=1) / np.sqrt(len(part_estimates)))
-
-    elif integration_method == "Rectangle":
-        n = 1000 if delta is None else max(10, int(abs((upper-lower)/delta)))
-        xs = np.linspace(lower, upper, n+1)
-        mids = 0.5*(xs[:-1]+xs[1:])
-        midpoint_chunks = [part for part in np.array_split(mids, 20) if part.size]
-        total = 0.0
-        for k, xm in enumerate(midpoint_chunks, start=1):
-            fm = numeric_values(f_num, xm)
-            if not np.all(np.isfinite(fm)):
-                raise ValueError("Function produced non-finite values in Rectangle.")
-            total += np.sum(fm)*(upper-lower)/n
-            progress_callback(int(k*100/len(midpoint_chunks)))
-        result = total
-
-    elif integration_method == "Trapezoidal":
-        n = 2000 if delta is None else max(50, int(abs((upper-lower)/delta)))
-        xs = np.linspace(lower, upper, n+1)
-        ys = numeric_values(f_num, xs)
-        if not np.all(np.isfinite(ys)):
-            raise ValueError("Function produced non-finite values in Trapezoidal.")
-        result = np.trapezoid(ys, xs)
-        progress_callback(100)
-
-    elif integration_method == "Simpson":
-        n = 2001 if delta is None else max(101, int(abs((upper-lower)/delta)))
-        if n % 2 == 0:
-            n += 1
-        xs = np.linspace(lower, upper, n)
-        ys = numeric_values(f_num, xs)
-        if not np.all(np.isfinite(ys)):
-            raise ValueError("Function produced non-finite values in Simpson.")
-        result = simpson(ys, x=xs)
-        progress_callback(100)
-
-    elif integration_method == "Romberg":
-        result = romberg_custom(f_num, lower, upper, max_level=8, tol=1e-8)
-        progress_callback(100)
-
-    elif integration_method == "Gaussian Quadrature":
-        result = gaussian_quadrature_fixed(f_num, lower, upper, n=64)
-        coarse = gaussian_quadrature_fixed(f_num, lower, upper, n=32)
-        error_estimate = float(abs(result - coarse))
-        progress_callback(100)
-
-    elif integration_method == "Simpson 3/8":
-        n_int = 300 if delta is None else max(30, int(abs((upper-lower)/delta)))
-        result = composite_simpson_38(f_num, lower, upper, n_intervals=n_int)
-        progress_callback(100)
-
-    elif integration_method == "Adaptive Simpson":
-        result, error_estimate = quad(
-            lambda t: numeric_scalar(f_num, t),
-            lower,
-            upper,
-            epsabs=1.49e-8,
-            epsrel=1.49e-8,
-            limit=100,
-        )
-        progress_callback(100)
-
-    else:
-        raise ValueError(f"Unknown numerical method: {integration_method}")
-
-    return float(result), error_estimate
+def compute_numerical_integral(integration_method, f_num, lower, upper, delta=None,
+                               progress_callback=None, *, options=None, return_diagnostics=False):
+    from integration_engine import integrate_numerically
+    value, error, diagnostics = integrate_numerically(
+        integration_method, f_num, lower, upper, delta,
+        progress_callback=progress_callback, options=options,
+    )
+    if return_diagnostics:
+        return value, error, diagnostics
+    # Preserve the legacy two-item public API for existing callers.
+    if integration_method in {"Rectangle", "Trapezoidal", "Simpson", "Simpson 3/8", "Romberg"}:
+        error = None
+    return value, error

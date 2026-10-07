@@ -36,44 +36,30 @@ def _symbolic_worker(target, args, result_queue):
         result_queue.put(("error", str(exc)))
 
 
-def _run_symbolic_with_timeout(target, args, timeout=SYMBOLIC_TIMEOUT_SECONDS):
-    if timeout is None or timeout <= 0:
+def _run_symbolic_with_timeout(target, args, timeout=SYMBOLIC_TIMEOUT_SECONDS, cancel=None):
+    if multiprocessing.current_process().daemon or timeout is None or timeout <= 0:
         return target(*args)
 
-    ctx = multiprocessing.get_context("spawn")
-    result_queue = ctx.Queue()
-    process = ctx.Process(target=_symbolic_worker, args=(target, args, result_queue))
-    try:
-        process.start()
-        process.join(timeout)
-
-        if process.is_alive():
-            process.terminate()
-            process.join(1)
-            raise SymbolicTimeoutError(
-                f"Symbolic integration exceeded {timeout} seconds. "
-                "Try numerical integration or simplify the input."
-            )
-
+    # Bounded polynomial work avoids process startup for common school inputs.
+    if args and isinstance(args[0], str) and len(args[0]) < 1200:
         try:
-            status, payload = result_queue.get(timeout=1)
-        except Empty:
-            raise RuntimeError("Symbolic integration process exited without returning a result.")
-    finally:
-        if process.is_alive():
-            process.terminate()
-            process.join(1)
-        result_queue.close()
-        result_queue.join_thread()
-
-    if status == "ok":
-        return payload
-    raise ValueError(payload)
+            expr = evaluate_symbolic_function(args[0])
+            if expr.is_polynomial(x_sym) and expr.as_poly(x_sym).degree() <= 128:
+                return target(*args)
+        except Exception:
+            pass
+    from symbolic_service import run_isolated
+    try:
+        return run_isolated(target, args, timeout, cancel)
+    except TimeoutError as exc:
+        raise SymbolicTimeoutError(str(exc)) from exc
 
 
 @lru_cache(maxsize=384)
-def _run_symbolic_cached(target, args, timeout):
-    return _run_symbolic_with_timeout(target, args, timeout)
+def _run_symbolic_cached(target, args, timeout, cancel=None):
+    if cancel is not None and cancel.is_set():
+        raise ValueError("Calculation cancelled.")
+    return _run_symbolic_with_timeout(target, args, timeout, cancel)
 
 
 def _is_unevaluated_integral(expr):
@@ -88,6 +74,7 @@ def _compute_tab1_result_direct(func_str, lower_text, upper_text):
         lower = parse_input_to_solving(lower_text)
         upper = parse_input_to_solving(upper_text)
         res = integrate(expr, (x_sym, lower, upper))
+        antiderivative = integrate(expr, x_sym) if expr.is_polynomial(x_sym) else None
         info = format_result_for_display(res, symbolic_len_limit=50)
         raw_result = info["raw"]
         raw_type = info["type"]
@@ -123,6 +110,7 @@ def _compute_tab1_result_direct(func_str, lower_text, upper_text):
             "raw_type": raw_type,
             "numeric_value": numeric_value,
             "numeric_err": numeric_err,
+            "antiderivative": sstr(antiderivative) if antiderivative is not None else None,
         }
 
     ind = integrate(expr, x_sym)
@@ -148,11 +136,11 @@ def _compute_tab1_result_direct(func_str, lower_text, upper_text):
     }
 
 
-def compute_tab1_result(func_str, lower_text, upper_text, timeout=SYMBOLIC_TIMEOUT_SECONDS):
+def compute_tab1_result(func_str, lower_text, upper_text, timeout=SYMBOLIC_TIMEOUT_SECONDS, cancel=None):
     return dict(_run_symbolic_cached(
         _compute_tab1_result_direct,
         (func_str, lower_text, upper_text),
-        timeout,
+        timeout, cancel,
     ))
 
 
@@ -195,11 +183,11 @@ def _compute_tab2_symbolic_result_direct(func_str, lower_text, upper_text):
     }
 
 
-def compute_tab2_symbolic_result(func_str, lower_text, upper_text, timeout=SYMBOLIC_TIMEOUT_SECONDS):
+def compute_tab2_symbolic_result(func_str, lower_text, upper_text, timeout=SYMBOLIC_TIMEOUT_SECONDS, cancel=None):
     return dict(_run_symbolic_cached(
         _compute_tab2_symbolic_result_direct,
         (func_str, lower_text, upper_text),
-        timeout,
+        timeout, cancel,
     ))
 
 
@@ -225,9 +213,9 @@ def _compute_general_integral_direct(func_str, lower_text, upper_text):
     return {"type": "exact", "expr": res}
 
 
-def compute_general_integral(func_str, lower_text, upper_text, timeout=SYMBOLIC_TIMEOUT_SECONDS):
+def compute_general_integral(func_str, lower_text, upper_text, timeout=SYMBOLIC_TIMEOUT_SECONDS, cancel=None):
     return dict(_run_symbolic_cached(
         _compute_general_integral_direct,
         (func_str, lower_text, upper_text),
-        timeout,
+        timeout, cancel,
     ))

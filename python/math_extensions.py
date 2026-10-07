@@ -140,21 +140,40 @@ def build_convergence_table(func_str, lower_text, upper_text, method="Trapezoida
     upper = float(parse_input_to_solving(upper_text).evalf())
     f_num = build_numeric_callable(expr)
     validate_numeric_integrand(expr, f_num, lower, upper)
-    reference, reference_error = quad(lambda t: numeric_scalar(f_num, t), lower, upper)
+    from reference_utils import independent_reference
+    reference, reference_kind = independent_reference(func_str, lower, upper)
+    if reference is None:
+        raise ValueError("An independent reference could not be verified within the budget.")
+    reference_error = None
     rows = []
     for item in intervals_text.replace(";", ",").split(","):
         item = item.strip()
         if not item:
             continue
-        n = max(1, int(parse_input_to_solving(item)))
-        delta = abs(upper - lower) / n
-        value, estimate = compute_numerical_integral(method, f_num, lower, upper, delta=delta)
+        parameter = parse_input_to_solving(item)
+        if method in {"Adaptive Simpson", "Adaptive Gauss-Kronrod", "Auto"}:
+            tolerance = float(parameter)
+            options = {"epsabs":tolerance,"epsrel":tolerance}
+            parameter_name = "tolerance"
+        else:
+            n = int(parameter)
+            if n != parameter or n < 1:
+                raise ValueError("The method parameter must be a positive integer.")
+            options = {"intervals":n}
+            parameter_name = "intervals"
+            if method == "Gaussian Quadrature":
+                options = {"order":n}; parameter_name = "order"
+            elif method == "Romberg":
+                options = {"max_level":n}; parameter_name = "max_level"
+        value, estimate, diagnostics = compute_numerical_integral(method, f_num, lower, upper,
+            options=options, return_diagnostics=True)
+        effective = diagnostics["parameters"] or options
+        effective_n = effective.get(parameter_name,float(parameter))
         rows.append({
-            "n": n,
-            "delta": delta,
-            "value": value,
-            "absolute_error": abs(value - reference),
-            "estimate": estimate,
+            "n":effective_n,"parameter_name":parameter_name,"parameters":effective,
+            "delta":effective.get("step"),"evaluations":diagnostics["evaluations"],
+            "status":diagnostics["status"],"value":value,
+            "absolute_error":abs(value-reference),"estimate":estimate,
         })
     if not rows:
         raise ValueError("Enter at least one interval count.")
@@ -172,11 +191,8 @@ def analyze_singularity_and_breakpoints(func_str, lower_text, upper_text):
     upper = float(parse_input_to_solving(upper_text).evalf())
     singularities = []
     try:
-        singularities = _real_values_in_interval(
-            find_singularities(expr, x_sym),
-            lower,
-            upper,
-        )
+        from numeric_methods import find_symbolic_singularities
+        singularities = find_symbolic_singularities(expr, lower, upper)
     except Exception:
         singularities = []
     breakpoints = find_piecewise_breakpoints(expr, lower, upper)
@@ -293,8 +309,8 @@ def compute_area_breakdown(func_str, lower_text, upper_text):
     validate_numeric_integrand(expr, f_num, lower, upper)
     signed, signed_error = quad(lambda t: numeric_scalar(f_num, t), lower, upper)
     absolute, absolute_error = quad(lambda t: abs(numeric_scalar(f_num, t)), lower, upper)
-    positive, _ = quad(lambda t: max(numeric_scalar(f_num, t), 0.0), lower, upper)
-    negative_signed, _ = quad(lambda t: min(numeric_scalar(f_num, t), 0.0), lower, upper)
+    positive = (absolute+signed)/2
+    negative_signed = (signed-absolute)/2
     return {
         "signed": signed,
         "absolute": absolute,
@@ -475,7 +491,11 @@ def build_error_profile(func_str, lower_text, upper_text):
     upper = float(parse_input_to_solving(upper_text).evalf())
     f_num = build_numeric_callable(expr)
     validate_numeric_integrand(expr, f_num, lower, upper)
-    reference, reference_error = quad(lambda t: numeric_scalar(f_num, t), lower, upper)
+    from reference_utils import independent_reference
+    reference, reference_kind = independent_reference(func_str, lower, upper)
+    if reference is None:
+        raise ValueError("An independent reference could not be verified within the budget.")
+    reference_error = None
     rows = []
     for method in (
         "Rectangle",
@@ -570,11 +590,13 @@ def compute_parameter_sensitivity(func_str, parameter_name, values_text, lower_t
     if not parameter:
         raise ValueError("Parameter name is required.")
     values = _parse_value_list(values_text)
+    symbolic_parameter = symbols(parameter)
+    base_expr = _parse_with_symbols(func_str, {"x":x_sym, parameter:symbolic_parameter})
+    lower = parse_input_to_solving(lower_text)
+    upper = parse_input_to_solving(upper_text)
     rows = []
     for value in values:
-        expr = evaluate_function_with_parameters(func_str, f"{parameter}={sstr(value)}")
-        lower = parse_input_to_solving(lower_text)
-        upper = parse_input_to_solving(upper_text)
+        expr = base_expr.subs(symbolic_parameter,value)
         integral = integrate(expr, (x_sym, lower, upper))
         rows.append({
             "parameter": pretty_math_str(value),
@@ -582,3 +604,15 @@ def compute_parameter_sensitivity(func_str, parameter_name, values_text, lower_t
             "numeric": float(integral.evalf()),
         })
     return rows
+
+
+def compute_average_and_area(*args):
+    return compute_average_value(*args), compute_area_breakdown(*args)
+
+
+def compute_analysis_bundle(*args):
+    return analyze_singularity_and_breakpoints(*args), analyze_function_properties(*args)
+
+
+def compute_geometry_bundle(function, lower, upper, axis):
+    return compute_arc_length(function,lower,upper), compute_revolution_volume(function,lower,upper,axis)
