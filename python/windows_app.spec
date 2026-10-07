@@ -58,7 +58,7 @@ a = Analysis(
         ("math_editor/resources", "math_editor/resources"),
     ],
     hiddenimports=hiddenimports,
-    hookspath=[],
+    hookspath=["hooks"],
     hooksconfig={
         "matplotlib": {
             "backends": ["QtAgg"],

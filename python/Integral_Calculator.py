@@ -38,7 +38,18 @@ def main():
         os.environ.setdefault("QTWEBENGINE_DISABLE_SANDBOX", "1")
         os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--no-sandbox --disable-gpu")
         from runtime_self_test import run
-        return run()
+        try:
+            return run()
+        except Exception:
+            import json
+            import traceback
+            failure = {"passed": False, "error": traceback.format_exc()}
+            if "--self-test-output" in sys.argv:
+                index = sys.argv.index("--self-test-output")
+                Path(sys.argv[index+1]).write_text(json.dumps(failure, indent=2)+"\n")
+            if sys.stderr is not None:
+                sys.stderr.write(failure["error"])
+            return 1
     from qt_app import main as run_app
 
     return run_app()

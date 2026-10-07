@@ -33,8 +33,15 @@ jobs:
       - name: Build application
         run: python -m PyInstaller --clean --noconfirm windows_app.spec
       - name: Test the packaged runtime
+        timeout-minutes: 3
         run: |
-          $app = Start-Process -FilePath 'dist/Integral_Calculator_Python/Integral_Calculator_Python.exe' -ArgumentList '--self-test','--self-test-output','runtime-check.json' -Wait -PassThru
+          $app = Start-Process -FilePath 'dist/Integral_Calculator_Python/Integral_Calculator_Python.exe' -ArgumentList '--self-test','--self-test-output','runtime-check.json' -PassThru
+          $runtimeHandle = $app.Handle
+          if (-not $app.WaitForExit(90000)) {
+            Stop-Process -Id $app.Id -Force
+            throw 'Packaged runtime self-test exceeded 90 seconds'
+          }
+          if (Test-Path 'runtime-check.json') { Get-Content 'runtime-check.json' }
           if ($app.ExitCode -ne 0) { throw "Packaged runtime self-test failed: $($app.ExitCode)" }
           if (-not (Test-Path 'runtime-check.json')) { throw 'Runtime check report is missing' }
           $report = Get-Content 'runtime-check.json' -Raw | ConvertFrom-Json
