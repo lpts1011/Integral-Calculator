@@ -281,6 +281,7 @@ class QtPackagingTests(unittest.TestCase):
                     resource_paths.runtime_resource_root(cache_root)
                 staged_editor.write_text("trusted", encoding="utf-8")
 
+    @unittest.skipUnless(os.name == "posix", "POSIX asset-vendoring shell script")
     def test_vendor_script_rejects_wrong_mathlive_version(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             temporary_root = Path(temporary_directory)
@@ -314,6 +315,7 @@ class QtPackagingTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(EXPECTED_MATHLIVE_VERSION, result.stderr)
 
+    @unittest.skipUnless(os.name == "posix", "POSIX asset-vendoring shell script")
     def test_vendor_script_vendors_valid_offline_tarball_to_override(self):
         script_source = (PROJECT_ROOT / "scripts" / "vendor_mathlive.sh").read_text(
             encoding="utf-8"

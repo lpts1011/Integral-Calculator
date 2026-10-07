@@ -1,0 +1,6 @@
+# Keep pinned offline assets byte-identical on Windows checkouts.
+python/math_editor/resources/mathlive.min.js -text
+*.woff2 binary
+*.so binary
+*.dylib binary
+*.sh text eol=lf
