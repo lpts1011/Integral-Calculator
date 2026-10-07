@@ -16,6 +16,7 @@ def run():
     from symbolic_service import run_isolated
     from signal_analysis import generate_and_integrate
     from PySide6.QtWidgets import QApplication
+    from PySide6.QtCore import QCoreApplication, QEvent, QTimer
     from math_editor.panel import MathEditorPanel
     from math_editor.syntax import FieldRole
 
@@ -48,6 +49,7 @@ def run():
         raise AssertionError('Fourier reconstruction mismatch')
     checks['fft_and_reconstruction'] = True
     app = QApplication.instance() or QApplication([])
+    app.setQuitOnLastWindowClosed(False)
     panel = MathEditorPanel()
     panel.create_field('self-test', FieldRole.EXPRESSION, 'x^2')
     started = time.monotonic()
@@ -59,7 +61,11 @@ def run():
     checks['offline_editor_bridge'] = True
     panel.close()
     panel.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
     app.processEvents()
+    # Let Qt emit aboutToQuit and drain its native WebEngine shutdown work.
+    QTimer.singleShot(0, app.quit)
+    app.exec()
     payload = {'passed':True, 'checks':checks}
     if '--self-test-output' in sys.argv:
         index = sys.argv.index('--self-test-output')
