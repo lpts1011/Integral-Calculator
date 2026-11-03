@@ -1,6 +1,5 @@
 import multiprocessing
 from functools import lru_cache
-from queue import Empty
 
 from solving.core.numbers import Integer, nan, oo, zoo
 from solving.integrals.integrals import Integral, integrate
@@ -27,13 +26,6 @@ SYMBOLIC_TIMEOUT_SECONDS = 8
 
 class SymbolicTimeoutError(TimeoutError):
     pass
-
-
-def _symbolic_worker(target, args, result_queue):
-    try:
-        result_queue.put(("ok", target(*args)))
-    except Exception as exc:
-        result_queue.put(("error", str(exc)))
 
 
 def _run_symbolic_with_timeout(target, args, timeout=SYMBOLIC_TIMEOUT_SECONDS, cancel=None):

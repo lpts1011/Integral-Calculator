@@ -5,12 +5,10 @@ import calengine as np
 from formatting import pretty_math_str
 from numeric_methods import build_numeric_callable, numeric_values, find_symbolic_singularities
 from parser_utils import evaluate_symbolic_function
+from theme_utils import apply_plot_theme
 
-
-def evaluate_function(x_vals, func_str: str):
-    expr = evaluate_symbolic_function(func_str)
-    f = build_numeric_callable(expr)
-    return numeric_values(f, np.array(x_vals, dtype=float))
+# Matplotlib's "best" legend placement scans every sample; dense plots use a fixed corner.
+BEST_LEGEND_MAX_POINTS = 1000
 
 
 def format_plot_expression(func_str: str) -> str:
@@ -30,7 +28,7 @@ def format_plot_expression(func_str: str) -> str:
 def clear_plot(ax, canvas, theme=None):
     ax.clear()
     if theme:
-        _apply_axis_theme(ax.figure, ax, theme)
+        apply_plot_theme(ax.figure, ax, theme)
     ax.set_title("Function Graph")
     if theme:
         ax.grid(True, color=theme["grid"])
@@ -89,7 +87,7 @@ def plot_embedded(
 
         ax.clear()
         if theme:
-            _apply_axis_theme(ax.figure, ax, theme)
+            apply_plot_theme(ax.figure, ax, theme)
         line_color = theme["accent"] if theme else None
         positive_color = theme["success"] if theme else "tab:green"
         negative_color = theme["danger"] if theme else "tab:red"
@@ -97,28 +95,27 @@ def plot_embedded(
         display_func = format_plot_expression(func_str)
         ax.plot(x_vals, y_vals, color=line_color, label=f"f(x) = {display_func}")
         if shade:
-            finite_mask = np.isfinite(y_vals)
-            area_mask = (x_vals >= bound_lower) & (x_vals <= bound_upper)
-            positive_mask = finite_mask & area_mask & (y_vals >= 0)
-            negative_mask = finite_mask & area_mask & (y_vals < 0)
+            fill_x, fill_y = _shading_samples(x_vals, y_vals, bound_lower, bound_upper)
+            finite_mask = np.isfinite(fill_y)
+            area_mask = (fill_x >= bound_lower) & (fill_x <= bound_upper)
+            positive_mask = finite_mask & area_mask & (fill_y >= 0)
+            negative_mask = finite_mask & area_mask & (fill_y <= 0)
             ax.fill_between(
-                x_vals,
+                fill_x,
                 0,
-                y_vals,
+                fill_y,
                 where=positive_mask,
                 color=positive_color,
                 alpha=0.18,
-                interpolate=True,
                 label="Positive area",
             )
             ax.fill_between(
-                x_vals,
+                fill_x,
                 0,
-                y_vals,
+                fill_y,
                 where=negative_mask,
                 color=negative_color,
                 alpha=0.18,
-                interpolate=True,
                 label="Negative area",
             )
         ax.axhline(0, linewidth=0.8, linestyle="--", color=guide_color)
@@ -145,7 +142,7 @@ def plot_embedded(
             ax.grid(True, color=theme["grid"])
         else:
             ax.grid(True)
-        ax.legend()
+        ax.legend(loc="best" if len(x_vals) <= BEST_LEGEND_MAX_POINTS else "upper right")
         if visible_limits is not None:
             ax.set_xlim(*visible_limits)
         canvas.draw_idle()
@@ -153,47 +150,52 @@ def plot_embedded(
         clear_plot(ax, canvas, theme)
 
 
-def _apply_axis_theme(fig, ax, theme):
-    fig.patch.set_facecolor(theme["plot_bg"])
-    ax.set_facecolor(theme["plot_bg"])
-    ax.title.set_color(theme["fg"])
-    ax.xaxis.label.set_color(theme["fg"])
-    ax.yaxis.label.set_color(theme["fg"])
-    ax.tick_params(colors=theme["fg"])
-    for spine in ax.spines.values():
-        spine.set_color(theme["muted"])
+def _shading_samples(x_vals, y_vals, lower, upper):
+    """Insert area bounds and linear zero crossings so each fill needs no per-region interpolation."""
+    x = np.asarray(x_vals, dtype=float)
+    y = np.asarray(y_vals, dtype=float)
+    bounds = np.asarray([lower, upper], dtype=float)
+    bounds = bounds[(bounds > x[0]) & (bounds < x[-1]) & ~np.isin(bounds, x)]
+    if bounds.size:
+        positions = np.searchsorted(x, bounds)
+        y = np.insert(y, positions, np.interp(bounds, x, y))
+        x = np.insert(x, positions, bounds)
+    with np.errstate(all="ignore"):
+        crossing = np.isfinite(y[:-1]) & np.isfinite(y[1:]) & (np.sign(y[:-1])*np.sign(y[1:]) < 0)
+        index = np.nonzero(crossing)[0]
+        x0, x1, y0, y1 = x[index], x[index+1], y[index], y[index+1]
+        roots = x0 - y0*(x1-x0)/(y1-y0)
+    return np.insert(x, index+1, roots), np.insert(y, index+1, 0.)
 
 
 def _approx_zero_crossings(x_vals, y_vals, max_roots=25, *, function=None):
     roots = []
+    y_vals = np.asarray(y_vals, dtype=float)
     finite = np.isfinite(y_vals)
-    for index in range(len(x_vals) - 1):
-        if not (finite[index] and finite[index + 1]):
-            continue
+    with np.errstate(all="ignore"):
+        candidate = finite[:-1] & finite[1:] & ((y_vals[:-1] == 0) | (y_vals[:-1]*y_vals[1:] < 0))
+    for index in np.nonzero(candidate)[0]:
         y0 = y_vals[index]
         y1 = y_vals[index + 1]
         x0 = x_vals[index]
         x1 = x_vals[index + 1]
         if y0 == 0:
             root = x0
-        elif y0 * y1 < 0:
-            if function is not None:
-                try:
-                    from scipy.optimize import brentq
-                    root = brentq(lambda x:float(function(x)),x0,x1)
-                    value = float(function(root))
-                    if not np.isfinite(value) or abs(value)>1e-7*max(1.,min(abs(y0),abs(y1))):
-                        continue
-                except Exception:
+        elif function is not None:
+            try:
+                from scipy.optimize import brentq
+                root = brentq(lambda x:float(function(x)),x0,x1)
+                value = float(function(root))
+                if not np.isfinite(value) or abs(value)>1e-7*max(1.,min(abs(y0),abs(y1))):
                     continue
-            else:
-                nearby = y_vals[max(0,index-3):min(len(y_vals),index+5)]
-                jumps = np.abs(np.diff(nearby))
-                if len(jumps)>2 and abs(y1-y0)>10*max(1e-15,float(np.nanmedian(jumps))):
-                    continue
-                root = x0 - y0 * (x1 - x0) / (y1 - y0)
+            except Exception:
+                continue
         else:
-            continue
+            nearby = y_vals[max(0,index-3):min(len(y_vals),index+5)]
+            jumps = np.abs(np.diff(nearby))
+            if len(jumps)>2 and abs(y1-y0)>10*max(1e-15,float(np.nanmedian(jumps))):
+                continue
+            root = x0 - y0 * (x1 - x0) / (y1 - y0)
         if not roots or abs(root - roots[-1]) > 1e-6:
             roots.append(float(root))
         if len(roots) >= max_roots:

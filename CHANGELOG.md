@@ -2,6 +2,25 @@
 
 All notable project changes are recorded here. Versions follow Semantic Versioning.
 
+## [5.0.1] - 2026-11-03
+
+### Changed
+
+- Faster numerical integration: cached oscillation and narrow-peak analysis per
+  expression, a direct scalar path for adaptive quadrature nodes, one NumPy
+  error-state context per integration, and cached engine attribute lookups.
+  A mixed 110-integration workload runs about 4.7× faster and method comparison
+  about 2.3× faster, with bit-identical results.
+- Faster graph rendering: vectorized zero-crossing search, area shading without
+  per-region interpolation, and fixed legend placement for dense plots. Plots of
+  high-frequency functions render about 5× faster; ordinary plots are unchanged.
+
+### Removed
+
+- Unused numerical helpers (`composite_simpson_38`, `romberg_custom`,
+  `monte_carlo_stratified`), an unused plotting helper, a duplicate plot-theme
+  function, an obsolete symbolic worker, unused attributes, and unused imports.
+
 ## [5.0.0] - 2026-10-08
 
 ### Added

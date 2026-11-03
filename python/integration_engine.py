@@ -8,7 +8,8 @@ from __future__ import annotations
 import heapq
 import math
 import time
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
+from functools import lru_cache
 
 import calengine as np
 from scipy.integrate import quad, simpson
@@ -68,25 +69,38 @@ class EvaluationBudget:
         if time.perf_counter()-self.started > self.options.max_seconds:
             raise NumericalConvergenceError("Time budget exceeded; convergence was not confirmed.")
 
-    def __call__(self, values):
+    def _spend(self, count):
         self.check()
-        self.count += int(np.asarray(values).size)
+        self.count += count
         if self.count > self.options.max_evaluations:
             raise NumericalConvergenceError("Evaluation budget exceeded; increase the budget or split the interval.")
-        with np.errstate(all="ignore"):
-            output = np.asarray(self.function(values), dtype=float)
+
+    def __call__(self, values):
+        self._spend(int(np.asarray(values).size))
+        output = np.asarray(self.function(values), dtype=float)
         if not np.all(np.isfinite(output)):
             raise ValueError("Function produced non-finite values at quadrature nodes.")
         return output
 
     def scalar(self, value):
-        return float(self(value).reshape(-1)[0])
+        # Adaptive quadrature calls this once per node, so avoid array round trips.
+        self._spend(1)
+        output = self.function(value)
+        result = output if isinstance(output, float) else float(np.asarray(output, dtype=float).reshape(-1)[0])
+        if not math.isfinite(result):
+            raise ValueError("Function produced non-finite values at quadrature nodes.")
+        return float(result)
 
 
 def oscillatory_factor(expr):
     """Recognize one linear-phase sine/cosine factor without guessing frequency."""
     if expr is None:
         return None
+    return _oscillatory_factor_cached(expr)
+
+
+@lru_cache(maxsize=256)
+def _oscillatory_factor_cached(expr):
     from parser_utils import x_sym
     from solving import sin, cos
     atoms = expr.atoms(sin, cos)
@@ -114,6 +128,11 @@ def structural_points(expr, a, b):
     """Resolve centers and widths of quadratic exponential peaks analytically."""
     if expr is None:
         return []
+    return list(_structural_points_cached(expr, float(a), float(b)))
+
+
+@lru_cache(maxsize=512)
+def _structural_points_cached(expr, a, b):
     from parser_utils import x_sym
     from solving import exp
     lo, hi = sorted((a, b))
@@ -133,7 +152,7 @@ def structural_points(expr, a, b):
                               if lo < center+k*width < hi)
         except (ValueError, TypeError, OverflowError):
             continue
-    return sorted(set(points))
+    return tuple(sorted(set(points)))
 
 
 def _quad_checked(f, a, b, options, **kwargs):
@@ -265,52 +284,54 @@ def integrate_numerically(method, function, a, b, delta=None, *, progress_callba
             method = "Oscillatory Quadrature"; reason = "Recognized a linear-phase oscillation"
         else:
             method = "Adaptive Gauss-Kronrod"; reason = "Adaptive error control with structural breakpoints"
-    if a == b:
-        value,error = 0.,0.
-    elif method in {"Adaptive Gauss-Kronrod", "Adaptive Simpson"}:
-        if method == "Adaptive Simpson":
-            value,error = _adaptive_simpson(f,a,b,opts)
+    # Invalid points are rejected after evaluation; suppress NumPy warnings once.
+    with np.errstate(all="ignore"):
+        if a == b:
+            value,error = 0.,0.
+        elif method in {"Adaptive Gauss-Kronrod", "Adaptive Simpson"}:
+            if method == "Adaptive Simpson":
+                value,error = _adaptive_simpson(f,a,b,opts)
+            else:
+                value,error = _quad_checked(f.scalar,a,b,opts,**({"points":points} if points else {}))
+        elif method == "Oscillatory Quadrature":
+            if not factor:
+                raise ValueError("Oscillatory Quadrature requires a recognizable linear-phase sine or cosine factor.")
+            value,error = _weighted_quad(f,a,b,factor,opts)
+            parameter = {"angular_frequency":factor[2]}
+        elif method == "Romberg":
+            value,error = _romberg(f,a,b,opts); parameter = {"max_level":opts.max_level}
+        elif method == "Gaussian Quadrature":
+            from numeric_methods import gaussian_quadrature_fixed
+            bounds = [a,*points,b]; value,error = 0.,0.
+            for left,right in zip(bounds[:-1],bounds[1:]):
+                fine = gaussian_quadrature_fixed(f,left,right,opts.order)
+                coarse = gaussian_quadrature_fixed(f,left,right,max(2,opts.order//2))
+                value += fine; error += abs(fine-coarse)
+            parameter = {"order":opts.order}
+        elif method == "Monte Carlo":
+            n = opts.intervals or (8000 if delta is None else max(4000,math.ceil((b-a)/delta)*20))
+            if n > opts.max_evaluations:
+                raise NumericalConvergenceError("Monte Carlo sample count exceeds the evaluation budget.")
+            if n < 2:
+                raise ValueError("Monte Carlo requires at least two samples to estimate uncertainty.")
+            strata = min(200, n//2, max(20,int(math.sqrt(n)))); rng = np.random.default_rng(opts.seed)
+            sizes = np.full(strata,n//strata,dtype=int); sizes[:n%strata] += 1
+            width = (b-a)/strata; value,variance = 0.,0.
+            for i,size in enumerate(sizes):
+                values = f(a+(i+rng.random(int(size)))*width)
+                value += width*float(np.mean(values))
+                if size > 1:
+                    variance += width**2*float(np.var(values,ddof=1))/size
+            error = math.sqrt(variance); parameter = {"samples":n,"strata":strata,"seed":opts.seed}
+        elif method in {"Rectangle","Trapezoidal","Simpson","Simpson 3/8"}:
+            default = {"Rectangle":1000,"Trapezoidal":2000,"Simpson":2000,"Simpson 3/8":300}[method]
+            n = opts.intervals or (default if delta is None else max(2,math.ceil((b-a)/delta)))
+            value,n = _fixed(f,method,a,b,n)
+            coarse,_ = _fixed(f,method,a,b,max(1,n//2))
+            error = abs(value-coarse)/(15 if method.startswith("Simpson") else 3) if n >= 4 else float("inf")
+            parameter = {"intervals":n,"step":(b-a)/n}
         else:
-            value,error = _quad_checked(f.scalar,a,b,opts,**({"points":points} if points else {}))
-    elif method == "Oscillatory Quadrature":
-        if not factor:
-            raise ValueError("Oscillatory Quadrature requires a recognizable linear-phase sine or cosine factor.")
-        value,error = _weighted_quad(f,a,b,factor,opts)
-        parameter = {"angular_frequency":factor[2]}
-    elif method == "Romberg":
-        value,error = _romberg(f,a,b,opts); parameter = {"max_level":opts.max_level}
-    elif method == "Gaussian Quadrature":
-        from numeric_methods import gaussian_quadrature_fixed
-        bounds = [a,*points,b]; value,error = 0.,0.
-        for left,right in zip(bounds[:-1],bounds[1:]):
-            fine = gaussian_quadrature_fixed(f,left,right,opts.order)
-            coarse = gaussian_quadrature_fixed(f,left,right,max(2,opts.order//2))
-            value += fine; error += abs(fine-coarse)
-        parameter = {"order":opts.order}
-    elif method == "Monte Carlo":
-        n = opts.intervals or (8000 if delta is None else max(4000,math.ceil((b-a)/delta)*20))
-        if n > opts.max_evaluations:
-            raise NumericalConvergenceError("Monte Carlo sample count exceeds the evaluation budget.")
-        if n < 2:
-            raise ValueError("Monte Carlo requires at least two samples to estimate uncertainty.")
-        strata = min(200, n//2, max(20,int(math.sqrt(n)))); rng = np.random.default_rng(opts.seed)
-        sizes = np.full(strata,n//strata,dtype=int); sizes[:n%strata] += 1
-        width = (b-a)/strata; value,variance = 0.,0.
-        for i,size in enumerate(sizes):
-            values = f(a+(i+rng.random(int(size)))*width)
-            value += width*float(np.mean(values))
-            if size > 1:
-                variance += width**2*float(np.var(values,ddof=1))/size
-        error = math.sqrt(variance); parameter = {"samples":n,"strata":strata,"seed":opts.seed}
-    elif method in {"Rectangle","Trapezoidal","Simpson","Simpson 3/8"}:
-        default = {"Rectangle":1000,"Trapezoidal":2000,"Simpson":2000,"Simpson 3/8":300}[method]
-        n = opts.intervals or (default if delta is None else max(2,math.ceil((b-a)/delta)))
-        value,n = _fixed(f,method,a,b,n)
-        coarse,_ = _fixed(f,method,a,b,max(1,n//2))
-        error = abs(value-coarse)/(15 if method.startswith("Simpson") else 3) if n >= 4 else float("inf")
-        parameter = {"intervals":n,"step":(b-a)/n}
-    else:
-        raise ValueError(f"Unknown numerical method: {method}")
+            raise ValueError(f"Unknown numerical method: {method}")
     target = max(opts.epsabs,opts.epsrel*abs(value))
     status = "converged" if error <= target else "tolerance_not_met"
     kind = "standard_error" if method == "Monte Carlo" else "estimated_absolute_error"

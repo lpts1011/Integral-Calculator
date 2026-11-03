@@ -11,7 +11,7 @@ def run():
     from numeric_methods import build_numeric_callable
     from parser_utils import evaluate_symbolic_function
     from tab2_logic import compute_segmented_numerical_integral
-    from signal_analysis import integrate_signal, convolution_analysis, fourier_reconstruction
+    from signal_analysis import convolution_analysis, fourier_reconstruction
     from symbolic_methods import compute_tab1_result
     from symbolic_service import run_isolated
     from signal_analysis import generate_and_integrate

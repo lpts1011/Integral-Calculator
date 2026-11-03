@@ -10,8 +10,8 @@ from math_editor.panel import MathEditorPanel
 from math_editor.syntax import FieldRole
 from qt_dialogs import show_error_dialog
 from qt_jobs import JobRunner
-from signal_analysis import (read_signal_csv,sample_expression,integrate_signal,noise_experiment,
-    convolution_analysis,fourier_reconstruction,generate_and_integrate,load_and_integrate,convolve_expression)
+from signal_analysis import (integrate_signal,noise_experiment,
+    fourier_reconstruction,generate_and_integrate,load_and_integrate,convolve_expression)
 from theme_utils import THEMES, apply_plot_theme
 
 

@@ -18,7 +18,10 @@ backend = _backend
 
 
 def __getattr__(name):
-    return getattr(_backend, name)
+    # Cache each attribute so later lookups skip this hook on numeric hot paths.
+    value = getattr(_backend, name)
+    globals()[name] = value
+    return value
 
 
 def __dir__():

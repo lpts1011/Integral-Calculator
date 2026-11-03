@@ -1,7 +1,7 @@
 from functools import lru_cache
 
 import calengine as np
-from scipy.integrate import quad, simpson
+from scipy.integrate import quad
 from solving.calculus.util import singularities
 from solving.core.expr import Expr
 from solving.utilities.lambdify import lambdify
@@ -45,7 +45,11 @@ def _build_numeric_callable_uncached(expr: Expr):
     try:
         raw_func = lambdify(x_sym, expr, modules="numpy", cse=True, docstring_limit=0)
         def function(z):
-            return normalize_lambdified_output(raw_func(z), z)
+            raw = raw_func(z)
+            # Scalar quadrature nodes need no shape normalization.
+            if isinstance(raw, float) and isinstance(z, float):
+                return np.float64(raw)
+            return normalize_lambdified_output(raw, z)
         function.expression = expr
         return function
     except Exception as e:
@@ -163,56 +167,6 @@ def ensure_finite_on_probe(func, a, b, n_probe=101, *, exclude_endpoints=False):
         xbad = xs[bad_idx[0]] if bad_idx.size > 0 else None
         return False, xbad
     return True, None
-
-
-def composite_simpson_38(func, a, b, n_intervals=300):
-    if not np.isfinite(a) or not np.isfinite(b):
-        raise ValueError("Simpson 3/8 requires finite limits.")
-    if a == b:
-        return 0.0
-    n = int(max(3, n_intervals))
-    if n % 3 != 0:
-        n += (3 - n % 3)
-    x = np.linspace(a, b, n + 1)
-    y = numeric_values(func, x)
-    if not np.all(np.isfinite(y)):
-        raise ValueError("Function produced non-finite values in Simpson 3/8.")
-    h = (b - a) / n
-    interior_sum = np.sum(y[1:-1])
-    multiple_of_three_sum = np.sum(y[3:n:3])
-    S = y[0] + y[-1] + 3 * interior_sum - multiple_of_three_sum
-    return 3 * h / 8 * S
-
-
-def romberg_custom(func, a, b, max_level=16, tol=1e-8):
-    from integration_engine import integrate_numerically
-    return integrate_numerically("Romberg",func,a,b,
-        options={"max_level":max_level,"epsabs":tol,"epsrel":tol})[0]
-
-
-def monte_carlo_stratified(func, a, b, n_samples=5000, n_strata=50, rng=None):
-    if not (np.isfinite(a) and np.isfinite(b)):
-        raise ValueError("Monte Carlo requires finite limits.")
-    if a == b:
-        return 0.0
-    rng = np.random.default_rng() if rng is None else rng
-    n_strata = max(1, int(n_strata))
-    n_samples = max(n_strata, int(n_samples))
-    per = n_samples // n_strata
-    if per == 0:
-        per = 1
-        n_strata = n_samples
-    width = (b - a) / n_strata
-    est = 0.0
-    for s in range(n_strata):
-        left = a + s * width
-        u = rng.random(per)
-        xs = left + u * width
-        vals = numeric_values(func, xs)
-        if not np.all(np.isfinite(vals)):
-            raise ValueError("Function produced non-finite values in Monte Carlo.")
-        est += width * np.mean(vals)
-    return est
 
 
 @lru_cache(maxsize=16)

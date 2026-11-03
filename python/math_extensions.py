@@ -1,5 +1,5 @@
 from scipy.integrate import quad
-from solving.calculus.util import continuous_domain, singularities as find_singularities
+from solving.calculus.util import continuous_domain
 from solving.core.function import Derivative, Function, diff, expand
 from solving.core.numbers import Rational, pi
 from solving.core.relational import Eq
@@ -35,7 +35,6 @@ from parser_utils import (
     parse_input_to_solving,
     x_sym,
 )
-from parameter_utils import evaluate_function_with_parameters
 from symbolic_methods import compute_general_integral
 
 

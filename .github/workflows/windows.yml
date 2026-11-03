@@ -48,10 +48,10 @@ jobs:
           if (-not $report.passed) { throw 'Runtime check did not pass' }
       - name: Package application
         shell: pwsh
-        run: Compress-Archive -Path 'dist/Integral_Calculator_Python' -DestinationPath 'dist/Integral-Calculator-Python-Windows-x64-v5.0.0.zip' -Force
+        run: Compress-Archive -Path 'dist/Integral_Calculator_Python' -DestinationPath 'dist/Integral-Calculator-Python-Windows-x64-v5.0.1.zip' -Force
       - uses: actions/upload-artifact@v4
         with:
-          name: Integral-Calculator-Windows-v5.0.0
+          name: Integral-Calculator-Windows-v5.0.1
           path: |
-            python/dist/Integral-Calculator-Python-Windows-x64-v5.0.0.zip
+            python/dist/Integral-Calculator-Python-Windows-x64-v5.0.1.zip
             python/runtime-check.json

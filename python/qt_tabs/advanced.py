@@ -80,7 +80,6 @@ class AdvancedIntegrationTab(QtIntegrationTab):
         self._recommendation_generation = 0
         self._recommendation_running = False
         self.recommendation = None
-        self._active_inputs = None
         self._comparison_dialogs: set[QDialog] = set()
 
         self.upper = self.create_math_field(
@@ -299,7 +298,6 @@ class AdvancedIntegrationTab(QtIntegrationTab):
         except Exception as exc:
             self._show_calculation_error(exc)
             return
-        self._active_inputs = inputs
         self.begin_work()
         self._start_progress(inputs)
 
@@ -525,7 +523,6 @@ class AdvancedIntegrationTab(QtIntegrationTab):
         except Exception as exc:
             self._show_comparison_error(exc)
             return
-        self._active_inputs = inputs
         self.begin_work("Comparing methods...")
         self.progress_bar.setRange(0, 0)
         self.progress_bar.show()

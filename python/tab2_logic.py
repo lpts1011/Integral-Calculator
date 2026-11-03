@@ -1,6 +1,6 @@
 import time
 from dataclasses import replace
-from integration_engine import get_options, NumericalOptions, structural_points
+from integration_engine import get_options, NumericalOptions
 from dataclasses import dataclass
 
 import calengine as np

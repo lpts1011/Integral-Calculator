@@ -1,7 +1,3 @@
-'''
-Post-Release Updates:
-'''
-
 import multiprocessing
 import os
 import sys
@@ -11,7 +7,7 @@ from pathlib import Path
 from local_source_paths import prefer_local_solving_source
 
 
-LOCAL_SOLVING_SOURCE = prefer_local_solving_source()
+prefer_local_solving_source()
 
 
 def _relaunch_with_supported_python():

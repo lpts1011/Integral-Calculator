@@ -25,7 +25,6 @@ class MathEditorPanel(QWidget):
         self._error_message = ""
         self._pending_scripts = []
         self._active_field_id = None
-        self._editor_url = editor_url
         self._startup_timeout_ms = startup_timeout_ms
 
         self._layout = QVBoxLayout(self)
@@ -97,10 +96,6 @@ class MathEditorPanel(QWidget):
     @property
     def web_view(self):
         return self._view
-
-    @property
-    def active_field_id(self):
-        return self._active_field_id
 
     def has_visible_virtual_keyboard(self):
         return False

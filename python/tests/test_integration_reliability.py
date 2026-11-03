@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import calengine as np
 from integration_engine import NumericalConvergenceError, CalculationCancelled
-from numeric_methods import build_numeric_callable,compute_numerical_integral,find_symbolic_singularities
+from numeric_methods import build_numeric_callable,find_symbolic_singularities
 from parser_utils import evaluate_symbolic_function
 from tab2_logic import compute_segmented_numerical_integral,prepare_tab2_inputs,compare_numerical_methods
 from math_extensions import build_convergence_table

@@ -22,9 +22,7 @@ class QtPlotWidget(QWidget):
         self.axes = self.figure.add_subplot(111)
         self.ax = self.axes
         self.canvas = FigureCanvasQTAgg(self.figure)
-        self.plot_canvas = self.canvas
         self.toolbar = NavigationToolbar2QT(self.canvas, self)
-        self.plot_toolbar = self.toolbar
         self.theme = theme
         self._last_plot = None
         self._rendering = False
