@@ -1,33 +1,17 @@
+"""Numerical integration and method comparison for the calculator screen."""
 import time
-from dataclasses import replace
-from integration_engine import get_options, NumericalOptions
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import calengine as np
 
+from integration_engine import NumericalOptions, get_options
 from interval_utils import build_subintervals, find_piecewise_breakpoints, parse_split_points
 from numeric_methods import (
-    FAST_METHODS,
     build_numeric_callable,
     compute_numerical_integral,
     validate_numeric_integrand,
 )
-from parser_utils import evaluate_symbolic_function, has_complete_limits, parse_input_to_float
-from symbolic_methods import compute_tab2_symbolic_result
-
-
-FINITE_ONLY_METHODS = {
-    "Gaussian Quadrature",
-    "Romberg",
-    "Adaptive Simpson",
-    "Auto",
-    "Adaptive Gauss-Kronrod",
-    "Oscillatory Quadrature",
-    "Simpson",
-    "Trapezoidal",
-    "Rectangle",
-    "Simpson 3/8",
-}
+from parser_utils import evaluate_symbolic_function, parse_input_to_float
 
 
 @dataclass(frozen=True)
@@ -36,38 +20,36 @@ class Tab2Inputs:
     input_func: str
     shown_func: str
     params_text: str
-    method: str
     integration_method: str
     lower_text: str
     upper_text: str
-    has_limits: bool
-    lower: float | None
-    upper: float | None
-    delta: float | None
+    lower: float
+    upper: float
+    delta: float | None = None
     split_text: str = ""
     options: NumericalOptions | None = None
 
 
 def prepare_tab2_inputs(
     func_str,
-    method,
     integration_method,
     lower_text,
     upper_text,
-    delta_text,
+    delta_text="",
     split_text="",
+    *,
     shown_func=None,
     input_func=None,
     params_text="",
     options=None,
 ):
-    if method == "Numerical Integration" and (not lower_text or not upper_text):
+    if not lower_text or not upper_text:
         raise ValueError("Numerical integration requires both lower and upper limits.")
-
-    lower = parse_input_to_float(lower_text) if lower_text else None
-    upper = parse_input_to_float(upper_text) if upper_text else None
+    lower = parse_input_to_float(lower_text)
+    upper = parse_input_to_float(upper_text)
+    if not (np.isfinite(lower) and np.isfinite(upper)):
+        raise ValueError("Numerical methods need finite limits; choose Auto for infinite limits.")
     delta = None
-
     if delta_text:
         delta = parse_input_to_float(delta_text)
         if not np.isfinite(delta) or delta <= 0:
@@ -78,11 +60,9 @@ def prepare_tab2_inputs(
         input_func=input_func or func_str,
         shown_func=shown_func or func_str,
         params_text=params_text,
-        method=method,
         integration_method=integration_method,
         lower_text=lower_text,
         upper_text=upper_text,
-        has_limits=has_complete_limits(lower_text, upper_text),
         lower=lower,
         upper=upper,
         delta=delta,
@@ -91,111 +71,19 @@ def prepare_tab2_inputs(
     )
 
 
-def should_use_indeterminate_progress(inputs):
-    return inputs.method != "Symbolic Integration" and inputs.integration_method in FAST_METHODS
-
-
-def run_tab2_calculation(inputs, emit_event):
-    if inputs.method == "Symbolic Integration":
-        _run_symbolic_tab2(inputs, emit_event)
-        return
-
-    _run_numeric_tab2(inputs, emit_event)
-
-
-def _run_symbolic_tab2(inputs, emit_event):
-    emit_event(("progress", 0))
-
-    result = compute_tab2_symbolic_result(
-        inputs.func_str,
-        inputs.lower_text,
-        inputs.upper_text,
-        cancel=inputs.options.cancel if inputs.options else None,
-    )
-    kind = result["kind"]
-
-    if kind == "symbolic_result":
-        emit_event((
-            "symbolic_result",
-            result["formatted"],
-            result["lower"],
-            result["upper"],
-            inputs.shown_func,
-            inputs.func_str,
-            inputs.input_func,
-            inputs.params_text,
-        ))
-    elif kind == "symbolic_indef":
-        emit_event((
-            "symbolic_indef",
-            result["formatted"],
-            inputs.shown_func,
-            inputs.func_str,
-            inputs.input_func,
-            inputs.params_text,
-        ))
-    elif kind == "symbolic_unevaluated":
-        emit_event((
-            "symbolic_unevaluated",
-            result["lower"],
-            result["upper"],
-            inputs.shown_func,
-            inputs.func_str,
-            inputs.input_func,
-            inputs.params_text,
-        ))
-    elif kind == "symbolic_indef_unevaluated":
-        emit_event((
-            "symbolic_indef_unevaluated",
-            inputs.shown_func,
-            inputs.func_str,
-            inputs.input_func,
-            inputs.params_text,
-        ))
-    else:
-        raise ValueError(f"Unknown symbolic result kind: {kind}")
-
-    emit_event(("progress", 100))
-
-
-def _run_numeric_tab2(inputs, emit_event):
-    lower = inputs.lower
-    upper = inputs.upper
-    if lower is None or upper is None:
-        raise ValueError("Numerical integration requires both lower and upper limits.")
-
-    if (
-        not np.isfinite(lower) or not np.isfinite(upper)
-    ) and inputs.integration_method in FINITE_ONLY_METHODS:
-        raise ValueError(f"{inputs.integration_method} requires finite lower and upper limits.")
-
+def run_numerical_integration(inputs):
+    """Return (value, error estimate, segments) for prepared inputs."""
     expr = evaluate_symbolic_function(inputs.func_str)
-    f_num = build_numeric_callable(expr)
-    result, error_estimate, segments = compute_segmented_numerical_integral(
+    return compute_segmented_numerical_integral(
         expr,
         inputs.integration_method,
-        f_num,
-        lower,
-        upper,
+        build_numeric_callable(expr),
+        inputs.lower,
+        inputs.upper,
         inputs.delta,
         inputs.split_text,
-        lambda value: emit_event(("progress", value)),
         options=inputs.options,
     )
-    emit_event((
-        "numeric_result",
-        result,
-        inputs.integration_method,
-        lower,
-        upper,
-        inputs.shown_func,
-        inputs.func_str,
-        error_estimate,
-        segments,
-        inputs.input_func,
-        inputs.params_text,
-        inputs.split_text,
-    ))
 
 
 def compute_segmented_numerical_integral(
@@ -293,10 +181,6 @@ def compute_segmented_numerical_integral(
 def compare_numerical_methods(inputs):
     from reference_utils import independent_reference
     import statistics
-    if inputs.lower is None or inputs.upper is None:
-        raise ValueError("Numerical method comparison requires both lower and upper limits.")
-    if not np.isfinite(inputs.lower) or not np.isfinite(inputs.upper):
-        raise ValueError("Numerical method comparison requires finite limits.")
     expr = evaluate_symbolic_function(inputs.func_str)
     f_num = build_numeric_callable(expr)
     reference, reference_kind = independent_reference(inputs.func_str, inputs.lower, inputs.upper)

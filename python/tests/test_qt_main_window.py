@@ -17,7 +17,6 @@ from qt_dialogs import (
     show_error_dialog,
     show_information_dialog,
     show_steps_dialog,
-    show_suggestions_dialog,
     show_usage_dialog,
 )
 from qt_plot import QtPlotWidget
@@ -31,28 +30,34 @@ class _FakeMathPanel:
         self.theme_name = name
 
 
-class _FakeTab(QWidget):
+class _FakeField:
+    def __init__(self):
+        self.value = ""
+
+    def set_text(self, value):
+        self.value = str(value)
+
+
+class _FakeCalculator(QWidget):
     history_record = Signal(object)
     plot_requested = Signal(str, float, float, object)
     plot_clear_requested = Signal()
     reset_requested = Signal()
 
-    def __init__(self, mode, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.mode = mode
         self.math_panel = _FakeMathPanel()
+        self.lower = _FakeField()
+        self.upper = _FakeField()
         self.function_text = ""
         self.parameter_text = ""
+        self.method = "Auto"
         self.language_text = {}
         self.refilled = None
         self.calculate_calls = 0
-        self.compute_calls = 0
         self.reset_calls = 0
         self.keyboard_insertions = []
         self.keyboard_commands = []
-        self.last_raw_result = "stale"
-        self.last_raw_result_type = "exact"
-        self.last_numeric_value = 1.0
 
     def get_function_text(self):
         return self.function_text
@@ -63,6 +68,9 @@ class _FakeTab(QWidget):
     def set_parameter_text(self, value):
         self.parameter_text = str(value)
         return True
+
+    def set_method(self, method):
+        self.method = method
 
     def insert_at_cursor(self, latex):
         self.keyboard_insertions.append(latex)
@@ -80,9 +88,6 @@ class _FakeTab(QWidget):
     def calculate(self):
         self.calculate_calls += 1
 
-    def compute(self):
-        self.compute_calls += 1
-
     def reset(self):
         self.reset_calls += 1
         self.function_text = ""
@@ -97,6 +102,9 @@ class _FakePlot(QWidget):
 
     def set_theme(self, theme):
         self.theme = theme
+
+    def set_labels(self, text):
+        self.labels = dict(text)
 
     def plot_function(self, *args):
         self.plot_calls.append(args)
@@ -262,11 +270,7 @@ class QtPrimitiveTests(unittest.TestCase):
         self.assertEqual(direct_dialog.copy_button.text(), "复制")
         direct_dialog.close()
 
-        for helper in (
-            show_steps_dialog,
-            show_suggestions_dialog,
-            show_usage_dialog,
-        ):
+        for helper in (show_steps_dialog, show_usage_dialog):
             with self.subTest(helper=helper.__name__):
                 dialog = helper(None, "Title", "content", copy_label="复制")
                 self.assertEqual(dialog.copy_button.text(), "复制")
@@ -302,11 +306,7 @@ class QtPrimitiveTests(unittest.TestCase):
                 self.assertEqual(qt_dialogs._OPEN_DIALOGS, set())
 
     def test_text_dialog_helpers_create_read_only_surfaces(self):
-        helpers = (
-            show_steps_dialog,
-            show_suggestions_dialog,
-            show_usage_dialog,
-        )
+        helpers = (show_steps_dialog, show_usage_dialog)
         for helper in helpers:
             with self.subTest(helper=helper.__name__):
                 dialog = helper(None, "Title", "content")
@@ -323,55 +323,35 @@ class QtMainWindowWorkflowTests(unittest.TestCase):
     def setUp(self):
         from qt_main_window import IntegralCalculatorWindow
 
-        def tab_factory(mode, parent):
-            return _FakeTab(mode, parent)
-
         self.window = IntegralCalculatorWindow(
-            tab_factory=tab_factory,
+            tab_factory=_FakeCalculator,
             plot_factory=_FakePlot,
             result_workspace_factory=_FakeResultWorkspace,
         )
+        self.calculator = self.window.calculator
 
     def tearDown(self):
         self.window.close()
         self.window.deleteLater()
         QApplication.processEvents()
 
-    def test_workspace_has_one_toolbar_splitter_tabs_history_and_progress(self):
+    def test_workspace_has_one_toolbar_one_calculator_and_history(self):
         self.assertEqual(len(self.window.findChildren(type(self.window.toolbar))), 1)
-        self.assertEqual(self.window.tabs.count(), 3)
+        self.assertFalse(hasattr(self.window, "tabs"))
+        self.assertIsInstance(self.calculator, _FakeCalculator)
         self.assertEqual(self.window.workspace.count(), 2)
-        self.assertIsNotNone(self.window.history_list)
-        self.assertIsNotNone(self.window.progress)
         self.assertEqual(self.window.left_workspace.count(), 2)
+        self.assertIsNotNone(self.window.history_list)
 
-    def test_keyboard_and_history_refill_target_active_tab(self):
-        self.window.tabs.setCurrentIndex(0)
+    def test_keyboard_and_history_refill_target_the_calculator(self):
         self.window.insert_math_at_cursor(r"\sin\left(#?\right)")
         self.window.dispatch_math_command("moveToPreviousChar")
-        self.assertEqual(
-            self.window.active_tab().keyboard_insertions,
-            [r"\sin\left(#?\right)"],
-        )
-        self.assertEqual(
-            self.window.active_tab().keyboard_commands,
-            ["moveToPreviousChar"],
-        )
+        self.assertEqual(self.calculator.keyboard_insertions, [r"\sin\left(#?\right)"])
+        self.assertEqual(self.calculator.keyboard_commands, ["moveToPreviousChar"])
 
-        self.window.add_history({
-            "type": "definite",
-            "display": "record",
-            "func": "sin(x)",
-            "lower": "0",
-            "upper": "pi",
-            "raw": "2",
-            "raw_type": "exact",
-            "numeric_value": 2.0,
-        })
+        self.window.add_history({"type": "definite", "display": "record", "func": "sin(x)"})
         self.window.refill_history_row(0)
-        self.assertIs(self.window.active_tab(), self.window.tab1)
-        self.assertEqual(self.window.active_tab().get_function_text(), "sin(x)")
-        self.assertEqual(self.window.last_raw_result, "2")
+        self.assertEqual(self.calculator.get_function_text(), "sin(x)")
         self.assertIs(self.window.result_workspace.records[-1], self.window.history[0])
 
     def test_math_keyboard_is_a_toggleable_always_on_top_tool_window(self):
@@ -405,75 +385,52 @@ class QtMainWindowWorkflowTests(unittest.TestCase):
         self.assertFalse(self.window.math_keyboard_button.isChecked())
         self.assertTrue(keyboard.isHidden())
 
-    def test_history_routing_and_double_compute_preserve_record_types(self):
-        records = [
-            {"type": "numerical", "display": "advanced", "func": "x"},
+    def test_double_click_refills_and_recalculates_any_record(self):
+        for record in (
+            {"type": "numerical", "display": "numerical", "func": "x", "method": "Simpson"},
             {"type": "improper", "display": "improper", "func": "1/x"},
-        ]
-        for record in records:
+        ):
             self.window.add_history(record)
-
         self.window.refill_and_compute_history_row(0)
-        self.assertIs(self.window.active_tab(), self.window.tab2)
-        self.assertEqual(self.window.tab2.calculate_calls, 1)
-
         self.window.refill_and_compute_history_row(1)
-        self.assertIs(self.window.active_tab(), self.window.tab3)
-        self.assertEqual(self.window.tab3.compute_calls, 1)
+        self.assertEqual(self.calculator.calculate_calls, 2)
+        self.assertEqual(self.calculator.refilled["type"], "improper")
 
-    def test_language_updates_window_tabs_controls_and_all_tabs(self):
+    def test_language_updates_window_controls_and_calculator(self):
         self.window.change_language("中文（简体）")
         self.assertEqual(self.window.windowTitle(), self.window.text["title"])
-        self.assertEqual(self.window.tabs.tabText(0), self.window.text["tabs"][0])
         self.assertEqual(self.window.usage_button.text(), self.window.text["usage"])
-        self.assertEqual(
-            self.window.math_keyboard_button.text(), self.window.text["math_keyboard"]
-        )
-        for tab in self.window.integration_tabs:
-            self.assertEqual(tab.language_text["title"], self.window.text["title"])
-        self.assertEqual(
-            self.window.result_workspace.text["exact_result"], "精确结果"
-        )
+        self.assertEqual(self.window.language_label.text(), "语言：")
+        self.assertEqual(self.window.math_keyboard_button.text(), self.window.text["math_keyboard"])
+        self.assertEqual(self.calculator.language_text["title"], self.window.text["title"])
+        self.assertEqual(self.window.result_workspace.text["exact_result"], "精确结果")
+        self.assertEqual(self.window.language_combo.count(), 2)
 
     def test_theme_reaches_plot_and_every_math_panel(self):
         self.window.apply_theme("Dark")
         self.assertEqual(self.window.theme_name, "Dark")
         self.assertIs(self.window.plot_widget.theme, self.window.theme)
-        for tab in self.window.integration_tabs:
-            self.assertEqual(tab.math_panel.theme_name, "Dark")
+        self.assertEqual(self.calculator.math_panel.theme_name, "Dark")
         self.assertEqual(self.window.result_workspace.theme_name, "Dark")
 
-    def test_tab_signals_feed_central_history_plot_and_reset(self):
-        self.window.tab1.history_record.emit({"type": "definite", "display": "row"})
+    def test_calculator_signals_feed_central_history_plot_and_reset(self):
+        self.calculator.history_record.emit({"type": "definite", "display": "row"})
         self.assertEqual(self.window.history_list.count(), 1)
-        self.window.tab1.plot_requested.emit("x", 0.0, 1.0, None)
+        self.calculator.plot_requested.emit("x", 0.0, 1.0, None)
         self.assertEqual(self.window.plot_widget.plot_calls[-1], ("x", 0.0, 1.0, None))
 
-        self.window.tab1.reset_requested.emit()
+        self.calculator.reset_requested.emit()
         self.assertEqual(self.window.history, [])
         self.assertGreaterEqual(self.window.plot_widget.clear_calls, 1)
 
-    def test_central_reset_clears_all_shared_and_exact_state(self):
+    def test_central_reset_clears_history_results_and_inputs(self):
         self.window.add_history({"type": "definite", "display": "row", "raw": "1"})
-        self.window.last_raw_result_type = "exact"
-        self.window.last_numeric_value = 1.0
-        self.window.progress.setRange(0, 0)
-        self.window.progress.show()
         self.window.reset_inputs()
-
         self.assertEqual(self.window.history, [])
         self.assertEqual(self.window.history_list.count(), 0)
-        self.assertFalse(self.window.progress.isVisible())
-        self.assertEqual((self.window.progress.minimum(), self.window.progress.maximum()), (0, 100))
-        self.assertEqual(self.window.progress.value(), 0)
         self.assertIsNone(self.window.last_record)
-        self.assertIsNone(self.window.last_raw_result)
         self.assertGreaterEqual(self.window.result_workspace.clear_calls, 1)
-        for tab in self.window.integration_tabs:
-            self.assertEqual(tab.reset_calls, 1)
-            self.assertIsNone(tab.last_raw_result)
-            self.assertIsNone(tab.last_raw_result_type)
-            self.assertIsNone(tab.last_numeric_value)
+        self.assertEqual(self.calculator.reset_calls, 1)
 
     def test_usage_and_steps_reuse_existing_content_generators(self):
         with patch("qt_main_window.show_usage_dialog") as usage_dialog:
@@ -513,7 +470,7 @@ class QtMainWindowWorkflowTests(unittest.TestCase):
             copy_label,
         )
 
-    def test_math_tools_preserves_opening_context_and_late_binds_insertions(self):
+    def test_math_tools_opens_with_calculator_context_and_inserts_into_it(self):
         created = []
 
         class StrictMathToolsDialog:
@@ -540,8 +497,7 @@ class QtMainWindowWorkflowTests(unittest.TestCase):
                 self.was_shown = True
 
         module = types.SimpleNamespace(MathToolsDialog=StrictMathToolsDialog)
-        self.window.tabs.setCurrentIndex(1)
-        self.window.tab2.set_function_text("sin(x)")
+        self.calculator.set_function_text("sin(x)")
         self.window.change_language("中文（简体）")
         self.window.apply_theme("Dark")
         with patch.dict("sys.modules", {"qt_math_tools": module}):
@@ -553,13 +509,10 @@ class QtMainWindowWorkflowTests(unittest.TestCase):
         self.assertIs(dialog.text, self.window.text)
         self.assertEqual(dialog.theme_name, "Dark")
         self.assertTrue(dialog.was_shown)
-        self.window.tabs.setCurrentIndex(0)
         dialog.insert_function("a*x")
         dialog.insert_parameters("a=2")
-        self.assertEqual(self.window.tab1.function_text, "a*x")
-        self.assertEqual(self.window.tab1.parameter_text, "a=2")
-        self.assertEqual(self.window.tab2.function_text, "sin(x)")
-        self.assertEqual(self.window.tab2.parameter_text, "")
+        self.assertEqual(self.calculator.function_text, "a*x")
+        self.assertEqual(self.calculator.parameter_text, "a=2")
 
 
 class QtAppTests(unittest.TestCase):

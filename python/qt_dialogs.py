@@ -152,21 +152,6 @@ def show_steps_dialog(
     )
 
 
-def show_suggestions_dialog(
-    parent: QWidget | None,
-    title: str,
-    content: str,
-    copy_label: str = "Copy",
-) -> TextDialog:
-    return show_text_dialog(
-        parent,
-        title,
-        content,
-        copy_button=True,
-        copy_label=copy_label,
-    )
-
-
 def show_usage_dialog(
     parent: QWidget | None,
     title: str,
@@ -189,6 +174,5 @@ __all__ = [
     "show_information_dialog",
     "show_error_dialog",
     "show_steps_dialog",
-    "show_suggestions_dialog",
     "show_usage_dialog",
 ]

@@ -7,14 +7,10 @@ from pathlib import Path
 
 
 def run():
-    import calengine as np
     from numeric_methods import build_numeric_callable
     from parser_utils import evaluate_symbolic_function
     from tab2_logic import compute_segmented_numerical_integral
-    from signal_analysis import convolution_analysis, fourier_reconstruction
     from symbolic_methods import compute_tab1_result
-    from symbolic_service import run_isolated
-    from signal_analysis import generate_and_integrate
     from PySide6.QtWidgets import QApplication
     from PySide6.QtCore import QCoreApplication, QEvent, QTimer
     from math_editor.panel import MathEditorPanel
@@ -36,18 +32,6 @@ def run():
     if abs(symbol['numeric_value']-2) > 1e-10:
         raise AssertionError('Symbolic worker result mismatch')
     checks['symbolic_worker'] = True
-    signal = run_isolated(generate_and_integrate, ('2', 0., 1., 101), timeout=8)
-    if abs(signal['integral']-2) > 1e-10:
-        raise AssertionError('Signal worker result mismatch')
-    checks['signal_worker'] = True
-    t = np.arange(128)/128
-    y = np.sin(2*np.pi*3*t)
-    convolution = convolution_analysis(t, y, np.exp(-t))
-    if convolution['difference'] > 1e-10:
-        raise AssertionError('FFT convolution mismatch')
-    if fourier_reconstruction(t, y, 3)['max_error'] > 1e-10:
-        raise AssertionError('Fourier reconstruction mismatch')
-    checks['fft_and_reconstruction'] = True
     app = QApplication.instance() or QApplication([])
     app.setQuitOnLastWindowClosed(False)
     panel = MathEditorPanel()

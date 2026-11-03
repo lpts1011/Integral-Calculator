@@ -3,6 +3,38 @@
 All notable project changes are recorded here. Versions use two-part `MAJOR.MINOR`
 numbers, and release tags are named `vMAJOR.MINOR`.
 
+## [6.0] - 2026-11-03
+
+### Changed
+
+- One calculator screen replaces the Basic, Advanced, and Improper tabs. **Auto**
+  gives the exact answer when one exists (including infinite limits and divergence)
+  and a number otherwise; **More options** holds the numerical method and
+  **Compare Methods**.
+- The result panel is the single place results appear; it now also says when an
+  improper integral diverges. Progress and **Cancel** appear only while a
+  calculation runs.
+- Math Tools is one list of ten tools: Area & Average, Polar Area, Arc Length &
+  Volume, Multiple Integrals, Taylor Series, Fourier/Laplace/ODE, Integration
+  Techniques, Verify Antiderivative, Parameter Slider, and Piecewise Builder.
+  Editors grow to fit their fields.
+- The interface is complete in English and Simplified Chinese, including Math
+  Tools, graph labels, history entries, and the theme menu. Graphs use a Chinese
+  font when one is installed.
+
+### Removed
+
+- Tolerance, budget, Gaussian-order, seed, step-size, and split-point inputs; the
+  numerical engine keeps its defaults and automatic breakpoints.
+- Method recommendations and the "Apply Recommendation" button (Auto already
+  chooses), the "View Exact Result" pop-up, and the duplicate result line.
+- Math Tools pages that repeated other features: Convergence Table, Convergence,
+  Error Plot, Analysis, Sensitivity, and the separate Double Integral page.
+- The Signal Integration workspace (CSV import, noise/drift, convolution, Fourier
+  reconstruction) and its example data.
+- Traditional Chinese, Japanese, Korean, Spanish, French, Arabic, and Hindi, which
+  were only partly translated.
+
 ## [5.1] - 2026-11-03
 
 ### Changed

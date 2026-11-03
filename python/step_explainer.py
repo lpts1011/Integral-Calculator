@@ -15,9 +15,9 @@ def build_steps_for_record(record):
         return "No calculation result is available. Run a calculation first."
 
     record_type = record.get("type", "")
-    if record_type in ("definite", "symbolic"):
+    if record_type == "definite":
         return _definite_steps(record)
-    if record_type in ("indefinite", "symbolic_indefinite"):
+    if record_type == "indefinite":
         return _indefinite_steps(record)
     if record_type == "numerical":
         return _numerical_steps(record)

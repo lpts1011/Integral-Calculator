@@ -9,6 +9,12 @@ from theme_utils import apply_plot_theme
 
 # Matplotlib's "best" legend placement scans every sample; dense plots use a fixed corner.
 BEST_LEGEND_MAX_POINTS = 1000
+PLOT_LABELS = {
+    "graph_title": "Function Graph",
+    "positive_area": "Positive area",
+    "negative_area": "Negative area",
+    "zeros": "Zeros",
+}
 
 
 def format_plot_expression(func_str: str) -> str:
@@ -25,11 +31,12 @@ def format_plot_expression(func_str: str) -> str:
     return display.replace("*", " · ")
 
 
-def clear_plot(ax, canvas, theme=None):
+def clear_plot(ax, canvas, theme=None, labels=None):
+    labels = {**PLOT_LABELS, **(labels or {})}
     ax.clear()
     if theme:
         apply_plot_theme(ax.figure, ax, theme)
-    ax.set_title("Function Graph")
+    ax.set_title(labels["graph_title"])
     if theme:
         ax.grid(True, color=theme["grid"])
     else:
@@ -47,7 +54,9 @@ def plot_embedded(
     shade=True,
     split_points=None,
     visible_limits=None,
+    labels=None,
 ):
+    labels = {**PLOT_LABELS, **(labels or {})}
     try:
         if not np.isfinite(lower) or not np.isfinite(upper) or lower == upper:
             clear_plot(ax, canvas, theme)
@@ -107,7 +116,7 @@ def plot_embedded(
                 where=positive_mask,
                 color=positive_color,
                 alpha=0.18,
-                label="Positive area",
+                label=labels["positive_area"],
             )
             ax.fill_between(
                 fill_x,
@@ -116,7 +125,7 @@ def plot_embedded(
                 where=negative_mask,
                 color=negative_color,
                 alpha=0.18,
-                label="Negative area",
+                label=labels["negative_area"],
             )
         ax.axhline(0, linewidth=0.8, linestyle="--", color=guide_color)
         ax.axvline(0, linewidth=0.8, linestyle="--", color=guide_color)
@@ -133,9 +142,9 @@ def plot_embedded(
                 s=18,
                 color=negative_color,
                 zorder=3,
-                label="Zeros",
+                label=labels["zeros"],
             )
-        ax.set_title(f"Function Graph: {display_func}")
+        ax.set_title(f"{labels['graph_title']}: {display_func}")
         ax.set_xlabel("x")
         ax.set_ylabel("f(x)")
         if theme:
@@ -147,7 +156,7 @@ def plot_embedded(
             ax.set_xlim(*visible_limits)
         canvas.draw_idle()
     except Exception:
-        clear_plot(ax, canvas, theme)
+        clear_plot(ax, canvas, theme, labels)
 
 
 def _shading_samples(x_vals, y_vals, lower, upper):

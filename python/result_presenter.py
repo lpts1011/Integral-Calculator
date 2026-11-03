@@ -15,8 +15,6 @@ from parser_utils import evaluate_symbolic_function, parse_input_to_solving, x_s
 SYMBOLIC_RECORD_TYPES = {
     "definite",
     "indefinite",
-    "symbolic",
-    "symbolic_indefinite",
     "improper",
 }
 
@@ -25,7 +23,7 @@ def _is_unavailable(record: dict[str, Any]) -> bool:
     raw_type = str(record.get("raw_type", "")).lower()
     combined = f"{record.get('raw', '')} {record.get('display', '')}".lower()
     return (
-        raw_type == "unevaluated"
+        raw_type in ("unevaluated", "divergent")
         or "integral(" in str(record.get("raw", "")).lower()
         or "no closed-form" in combined
         or "divergent" in combined
@@ -50,11 +48,11 @@ def _latex_value(value: Any) -> str:
 
 def _numeric_value(record: dict[str, Any]) -> float | None:
     record_type = str(record.get("type", ""))
-    if record_type in ("indefinite", "symbolic_indefinite", "comparison"):
+    if record_type in ("indefinite", "comparison"):
         return None
 
     candidates = [record.get("numeric_value")]
-    if record_type in ("numerical", "improper", "definite", "symbolic"):
+    if record_type in ("numerical", "improper", "definite"):
         candidates.append(record.get("raw"))
 
     for candidate in candidates:
@@ -100,7 +98,7 @@ def build_result_summary(record: dict[str, Any] | None) -> dict[str, Any]:
     else:
         try:
             exact_latex = _latex_value(record.get("raw"))
-            if record_type in ("indefinite", "symbolic_indefinite"):
+            if record_type == "indefinite":
                 exact_latex += r" + C"
             exact = {"latex": exact_latex}
         except Exception:
@@ -120,10 +118,12 @@ def build_result_summary(record: dict[str, Any] | None) -> dict[str, Any]:
                 f"{diagnostics.get('evaluations', 0)} evaluations; "
                 f"{diagnostics.get('error_kind', 'estimated error')}"
             )
-    elif record_type in ("indefinite", "symbolic_indefinite") and "latex" in exact:
+    elif record_type == "indefinite" and "latex" in exact:
         result = {"latex": rf"F(x) = {exact['latex']}"}
     elif record_type == "comparison":
         result = {"text_key": "comparison_complete"}
+    elif record.get("raw_type") == "divergent":
+        result = {"text_key": "divergent"}
     elif unavailable:
         result = {"text_key": "not_available"}
     else:
@@ -236,9 +236,9 @@ def build_symbolic_steps(record: dict[str, Any]) -> list[dict[str, str]]:
         return []
     record_type = str(record.get("type", ""))
     try:
-        if record_type in ("definite", "symbolic"):
+        if record_type == "definite":
             return _definite_steps(record)
-        if record_type in ("indefinite", "symbolic_indefinite"):
+        if record_type == "indefinite":
             return _indefinite_steps(record)
         if record_type == "improper":
             return _improper_steps(record)

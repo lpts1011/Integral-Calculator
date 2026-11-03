@@ -1,18 +1,18 @@
-# Signals & Reliable Integration — v5.0
+# Reliable Integration — v6.0
 
-This edition keeps integration at the center of the project. The engineering
-connection is the accumulation and transformation of information: measured
-signals, energy, bias drift, convolution, and Fourier reconstruction. The
-existing symbolic calculus workspace remains available.
+This document describes how the calculator integrates numerically, what its
+error reports mean, and how to reproduce the benchmark evidence.
 
 ## Numerical integration
 
-Advanced → Numerical Integration offers **Auto**, which selects weighted
+With **Auto**, the calculator first looks for an exact result. When none exists,
+or when **More options → Method** selects a numerical method, it integrates
+numerically. The numerical engine's own automatic choice uses weighted
 quadrature for a recognized single linear-phase sine/cosine factor and adaptive
-Gauss–Kronrod otherwise. Precision controls expose absolute/relative tolerance,
-evaluation/time budgets, Gaussian order, and a Monte Carlo seed. Fixed rules
-still use the step input. Convergence studies expose the parameter appropriate
-to each method, with actual evaluation counts.
+Gauss–Kronrod otherwise. Numerical runs use fixed defaults: absolute and relative
+tolerance 1e-8, at most 200,000 evaluations, and an 8-second budget. Fixed rules
+use their default sample counts. Numerical methods require finite limits; Auto
+handles infinite limits and reports divergence.
 
 Adaptive Simpson now implements Simpson refinement; it is distinct from
 Gauss–Kronrod. Romberg requires adequate oscillation resolution before accepting
@@ -39,38 +39,6 @@ accuracy is confirmed. If a trustworthy reference is unavailable, the comparison
 says so. Different algorithms retain their own work parameters, so this is a
 benchmark at the selected tolerance/settings, not a universal ranking.
 
-## Signal tools
-
-Open **Math Tools → Signals**. In formulas, `x` is time.
-
-1. Generate samples from a formula or import a UTF-8 CSV with two columns:
-   `time,value`. An optional `time`, `t`, or `timestamp` header is supported.
-   Timestamps must be finite and strictly increasing; missing values and duplicate
-   timestamps are rejected. `examples/signal.csv` is an import example.
-2. The data view integrates with actual timestamps and plots the cumulative
-   integral. It also reports time-weighted mean, RMS, and signal energy.
-   Uneven sample spacing is supported here. Sampling and measurement error are
-   separate from quadrature error and are not certified by this result.
-3. Noise experiments add reproducible Gaussian noise and a known bias. They plot
-   accumulated integral error, compare expected bias drift `bias × duration`, and
-   apply known-bias correction plus an edge-padded moving average. This preserves
-   a genuine DC component; smoothing can still distort a varying signal.
-4. Convolution compares direct and FFT implementations with the sample-spacing
-   factor included. Both signals are zero outside the supplied finite window;
-   the output time origin is the sum of their origins. Direct computation is
-   skipped when its quadratic operation budget is exceeded.
-5. Fourier reconstruction retains a chosen harmonic count and displays the error
-   curve, RMS error, and maximum error. The samples are periodically extended
-   with period `sample count × spacing`. For a complete period, avoid supplying
-   a duplicated endpoint. Noise, convolution, and Fourier views require uniform
-   sample spacing and reject uneven grids rather than silently reinterpreting
-   their timestamps.
-
-The UI limits sample count to 200,000 and CSV size to 32 MB. Signal and mathematical
-tool calculations run in a reusable isolated process; cancellation and timeouts
-terminate and replace it. Large returned results are received before process
-shutdown, avoiding pipe/queue deadlocks.
-
 ## Reproduce the evidence
 
 ```sh
@@ -85,6 +53,3 @@ SciPy `quad` used 2,079 evaluations and did not converge. For the narrow Gaussia
 plain `quad` returned zero; the new structural split returned approximately
 `0.0001772453850905545` using 210 evaluations. These are fixture-specific results;
 wall-clock times and relative performance depend on hardware and input.
-
-The Python changes also include the offline MathLive editor, Qt interface, and
-packaging work that had not previously been synchronized to the repository.

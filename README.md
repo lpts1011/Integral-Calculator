@@ -1,30 +1,30 @@
 # Integral Calculator
 
-A desktop integral calculator with symbolic calculus, numerical error control,
-interactive plots, and integration-based signal analysis.
+A desktop integral calculator with exact (symbolic) answers, reliable numerical
+integration, interactive graphs, and step-by-step explanations.
 
-**v5.0 — Signals & Reliable Integration** upgrades the Python edition.
-v5.1 makes integration and plotting faster and removes the C++ edition and the
-standalone launcher.
+**v6.0 — One calculator screen.** Definite, indefinite, and improper integrals
+share one screen that gives the exact answer when one exists and a number
+otherwise. Math Tools is a single list of ten tools, and the interface is
+available in English and Simplified Chinese.
 
 ## Highlights
 
-- Definite, indefinite, and improper integration; parameters and split intervals.
-- Auto selection, adaptive Gauss–Kronrod, weighted oscillatory quadrature, actual
-  adaptive Simpson, Romberg, Gaussian quadrature, fixed rules, and seeded Monte Carlo.
-- Absolute/relative tolerances, work/time budgets, cancellation, evaluation counts,
-  convergence status, and clearly labeled numerical error estimates.
+- One screen for definite, indefinite, and improper (∞) integrals, with parameters
+  such as `a=2`.
+- **Auto** gives the exact result when possible; **More options** offers ten
+  numerical methods (adaptive Gauss–Kronrod, oscillatory quadrature, adaptive
+  Simpson, Romberg, Gaussian quadrature, fixed rules, and seeded Monte Carlo)
+  and a side-by-side method comparison.
+- Numerical results report the method, evaluation count, convergence status, and
+  a clearly labeled error estimate.
 - Structural narrow-peak detection, bounded periodic singularity search,
   integrable endpoint singularities, and protection against Romberg aliasing.
-- Method comparison with repeated timings and independent accuracy references;
-  convergence studies use real method parameters.
-- Sampled signal CSV import, cumulative integration, mean, RMS, and energy.
-- Reproducible noise/bias drift experiments, direct/FFT convolution, and Fourier
-  reconstruction with error plots.
-- Reusable isolated background calculations and cached numerical/symbolic work.
-- Fully offline MathLive editor through Qt WebEngine; PySide6 interface, adaptive
-  plots, history, exports, favorites, mathematical tools, and nine language choices.
-  New controls have English fallbacks and primary Simplified Chinese labels.
+- Math Tools: area and average value, polar area, arc length and volume, multiple
+  integrals, Taylor series, Fourier/Laplace/ODE, integration techniques,
+  antiderivative checks, a parameter slider, and a piecewise builder.
+- Fully offline MathLive editor and math keyboard, adaptive graphs, history, and
+  symbolic steps, in English or Simplified Chinese.
 
 See [python/docs/ENGINEERING.md](python/docs/ENGINEERING.md) for workflows,
 algorithm limits, and reproducible benchmark evidence.

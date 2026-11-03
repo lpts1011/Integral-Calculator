@@ -5,8 +5,6 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from PySide6.QtCore import QThread
 from PySide6.QtWidgets import QApplication
 from qt_jobs import JobRunner
-from qt_signal_tools import SignalToolsPanel
-from test_qt_math_tools import FakeMathEditorPanel
 
 
 def delayed_value():
@@ -14,7 +12,7 @@ def delayed_value():
     return 42
 
 
-class SignalJobTests(unittest.TestCase):
+class JobRunnerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
@@ -37,20 +35,6 @@ class SignalJobTests(unittest.TestCase):
         self.assertEqual(received[0][0], 42)
         self.assertEqual(received[0][1], self.app.thread())
         runner.close()
-
-    def test_signal_workspace_generates_and_analyzes_samples(self):
-        panel = SignalToolsPanel(panel_factory=FakeMathEditorPanel)
-        errors = []
-        panel._error = errors.append
-        panel.function.set_text('2')
-        panel.generate_samples()
-        self.until(lambda: not panel.runner.busy)
-        self.assertEqual(errors, [])
-        self.assertAlmostEqual(panel.samples['integral'], 2.)
-        self.assertAlmostEqual(panel.samples['rms'], 2.)
-        self.assertIn('Signal energy', panel.output.toPlainText())
-        panel.runner.close()
-        panel.deleteLater()
 
     def test_closed_runner_suppresses_result_callbacks(self):
         runner = JobRunner()

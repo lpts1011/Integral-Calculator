@@ -4,7 +4,6 @@ from functools import lru_cache
 from solving.core.numbers import Integer, nan, oo, zoo
 from solving.integrals.integrals import Integral, integrate
 from solving.printing.str import sstr
-from solving.simplify.simplify import nsimplify
 
 from formatting import format_result_for_display, pretty_math_str
 from numeric_methods import (
@@ -52,10 +51,6 @@ def _run_symbolic_cached(target, args, timeout, cancel=None):
     if cancel is not None and cancel.is_set():
         raise ValueError("Calculation cancelled.")
     return _run_symbolic_with_timeout(target, args, timeout, cancel)
-
-
-def _is_unevaluated_integral(expr):
-    return isinstance(expr, Integral) or expr.has(Integral)
 
 
 def _compute_tab1_result_direct(func_str, lower_text, upper_text):
@@ -131,53 +126,6 @@ def _compute_tab1_result_direct(func_str, lower_text, upper_text):
 def compute_tab1_result(func_str, lower_text, upper_text, timeout=SYMBOLIC_TIMEOUT_SECONDS, cancel=None):
     return dict(_run_symbolic_cached(
         _compute_tab1_result_direct,
-        (func_str, lower_text, upper_text),
-        timeout, cancel,
-    ))
-
-
-def _compute_tab2_symbolic_result_direct(func_str, lower_text, upper_text):
-    shown_func = func_str
-    expr = evaluate_symbolic_function(func_str)
-
-    if has_complete_limits(lower_text, upper_text):
-        lower = parse_input_to_solving(lower_text)
-        upper = parse_input_to_solving(upper_text)
-        result = integrate(expr, (x_sym, lower, upper))
-        if _is_unevaluated_integral(result):
-            return {
-                "kind": "symbolic_unevaluated",
-                "lower": lower_text,
-                "upper": upper_text,
-                "shown_func": shown_func,
-            }
-
-        result = nsimplify(result)
-        return {
-            "kind": "symbolic_result",
-            "formatted": pretty_math_str(result),
-            "lower": lower_text,
-            "upper": upper_text,
-            "shown_func": shown_func,
-        }
-
-    result = integrate(expr, x_sym)
-    if _is_unevaluated_integral(result):
-        return {
-            "kind": "symbolic_indef_unevaluated",
-            "shown_func": shown_func,
-        }
-
-    return {
-        "kind": "symbolic_indef",
-        "formatted": pretty_math_str(result),
-        "shown_func": shown_func,
-    }
-
-
-def compute_tab2_symbolic_result(func_str, lower_text, upper_text, timeout=SYMBOLIC_TIMEOUT_SECONDS, cancel=None):
-    return dict(_run_symbolic_cached(
-        _compute_tab2_symbolic_result_direct,
         (func_str, lower_text, upper_text),
         timeout, cancel,
     ))

@@ -126,7 +126,7 @@ class QtPackagingTests(unittest.TestCase):
 
     def test_macos_bundle_version_and_display_name_are_release_ready(self):
         source = (PROJECT_ROOT / "macos_app.spec").read_text(encoding="utf-8")
-        self.assertIn('os.environ.get("APP_VERSION", "5.1")', source)
+        self.assertIn('os.environ.get("APP_VERSION", "6.0")', source)
         self.assertIn('"CFBundleName": "Integral Calculator"', source)
         self.assertIn('"CFBundleDisplayName": "Integral Calculator"', source)
         self.assertIn('"CFBundleShortVersionString": app_version', source)

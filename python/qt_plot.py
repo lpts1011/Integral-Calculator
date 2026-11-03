@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from matplotlib import font_manager, rcParams
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
 from PySide6.QtCore import QTimer
@@ -11,6 +12,28 @@ from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from plot_utils import clear_plot, plot_embedded
 from theme_utils import apply_plot_theme
+
+
+# Chinese fonts on macOS, Windows, and Linux; the first one found draws characters the default font lacks.
+CJK_FONTS = (
+    "PingFang SC",
+    "Heiti SC",
+    "Microsoft YaHei",
+    "SimHei",
+    "Noto Sans CJK SC",
+    "WenQuanYi Zen Hei",
+    "Arial Unicode MS",
+)
+
+
+def _use_cjk_font_fallback() -> None:
+    available = {font.name for font in font_manager.fontManager.ttflist}
+    fallback = next((name for name in CJK_FONTS if name in available), None)
+    if fallback is not None:
+        rcParams["font.family"] = ["sans-serif", fallback]
+
+
+_use_cjk_font_fallback()
 
 
 class QtPlotWidget(QWidget):
@@ -24,6 +47,7 @@ class QtPlotWidget(QWidget):
         self.canvas = FigureCanvasQTAgg(self.figure)
         self.toolbar = NavigationToolbar2QT(self.canvas, self)
         self.theme = theme
+        self.labels: dict[str, object] | None = None
         self._last_plot = None
         self._rendering = False
         self._zoom_timer = QTimer(self)
@@ -45,6 +69,14 @@ class QtPlotWidget(QWidget):
             apply_plot_theme(self.figure, self.axes, theme)
         self.canvas.draw_idle()
 
+    def set_labels(self, text: dict[str, object]) -> None:
+        """Use translated graph labels from the interface text."""
+        self.labels = dict(text)
+        if self._last_plot is None:
+            self.clear()
+        else:
+            self._render_plot()
+
     def plot_function(
         self,
         func: Any,
@@ -64,7 +96,7 @@ class QtPlotWidget(QWidget):
         self._rendering = True
         try:
             plot_embedded(function,lower,upper,self.axes,self.canvas,self.theme,
-                          split_points=points,visible_limits=visible_limits)
+                          split_points=points,visible_limits=visible_limits,labels=self.labels)
             self.axes.callbacks.connect("xlim_changed",self._zoom_changed)
         finally:
             self._rendering = False
@@ -84,7 +116,7 @@ class QtPlotWidget(QWidget):
     def clear(self) -> None:
         self._last_plot = None
         self._zoom_timer.stop()
-        clear_plot(self.axes, self.canvas, self.theme)
+        clear_plot(self.axes, self.canvas, self.theme, self.labels)
 
 
 __all__ = ["QtPlotWidget"]

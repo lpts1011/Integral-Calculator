@@ -9,7 +9,6 @@ from integration_engine import NumericalConvergenceError, CalculationCancelled
 from numeric_methods import build_numeric_callable,find_symbolic_singularities
 from parser_utils import evaluate_symbolic_function
 from tab2_logic import compute_segmented_numerical_integral,prepare_tab2_inputs,compare_numerical_methods
-from math_extensions import build_convergence_table
 from plot_utils import _approx_zero_crossings
 from result_presenter import build_result_summary
 
@@ -75,7 +74,7 @@ class IntegrationReliabilityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"budget"):
             self.calculate("x^2","Trapezoidal",delta=1e-12)
         with self.assertRaises(ValueError):
-            prepare_tab2_inputs("x","Numerical Integration","Simpson","0","1","inf")
+            prepare_tab2_inputs("x","Simpson","0","1","inf")
 
     def test_cancel_and_time_budget(self):
         cancel=threading.Event();cancel.set()
@@ -94,18 +93,6 @@ class IntegrationReliabilityTests(unittest.TestCase):
             value,error,segments=self.calculate("exp(x)",method)
             self.assertAlmostEqual(value,math.e-1,places=8)
             self.assertEqual(segments[0]["diagnostics"]["method"],method)
-
-    def test_convergence_table_uses_real_interval_counts(self):
-        rows=build_convergence_table("exp(x)","0","1","Trapezoidal","10,20,50")["rows"]
-        self.assertEqual([row["n"] for row in rows],[10,20,50])
-        self.assertGreater(rows[0]["absolute_error"],rows[1]["absolute_error"])
-        self.assertGreater(rows[1]["absolute_error"],rows[2]["absolute_error"])
-
-    def test_convergence_table_changes_gaussian_order_and_adaptive_tolerance(self):
-        rows=build_convergence_table("exp(x)","0","1","Gaussian Quadrature","2,4,8")["rows"]
-        self.assertEqual([row["parameters"]["order"] for row in rows],[2,4,8])
-        rows=build_convergence_table("exp(x)","0","1","Adaptive Simpson","1e-4,1e-8,1e-12")["rows"]
-        self.assertLess(rows[0]["evaluations"],rows[-1]["evaluations"])
 
     def test_segment_deterministic_estimates_are_added(self):
         expr=evaluate_symbolic_function("x")
@@ -134,7 +121,7 @@ class IntegrationReliabilityTests(unittest.TestCase):
         self.assertIn("21 evaluations",result["detail"])
 
     def test_comparison_uses_independent_reference_and_repeated_timing(self):
-        inputs=prepare_tab2_inputs("x^2","Numerical Integration","Auto","0","1","",options={"repeats":2})
+        inputs=prepare_tab2_inputs("x^2","Auto","0","1",options={"repeats":2})
         rows=compare_numerical_methods(inputs)
         successful=[row for row in rows if row["status"]=="ok"]
         self.assertTrue(successful)

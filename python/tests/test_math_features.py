@@ -11,7 +11,7 @@ from tab2_logic import (
     compare_numerical_methods,
     compute_segmented_numerical_integral,
     prepare_tab2_inputs,
-    run_tab2_calculation,
+    run_numerical_integration,
 )
 
 
@@ -26,19 +26,15 @@ class MathFeatureTests(unittest.TestCase):
 
         inputs = prepare_tab2_inputs(
             resolved,
-            "Numerical Integration",
             "Simpson",
             "0",
             "1",
-            "",
             shown_func="a*x^2 + b [a=2, b=1]",
             input_func="a*x^2 + b",
             params_text="a=2, b=1",
         )
-        events = []
-        run_tab2_calculation(inputs, events.append)
-        self.assertEqual(events[-1][0], "numeric_result")
-        self.assertAlmostEqual(events[-1][1], 5 / 3, places=10)
+        value, _error, _segments = run_numerical_integration(inputs)
+        self.assertAlmostEqual(value, 5 / 3, places=10)
 
     def test_manual_split_integrates_each_segment(self):
         expr = evaluate_symbolic_function("x")
@@ -73,7 +69,7 @@ class MathFeatureTests(unittest.TestCase):
         self.assertEqual(build_subintervals(2, 0, [0.5, 1.5]), [(2.0, 1.5), (1.5, 0.5), (0.5, 0.0)])
 
     def test_method_comparison(self):
-        inputs = prepare_tab2_inputs("x^2", "Numerical Integration", "Simpson", "0", "1", "")
+        inputs = prepare_tab2_inputs("x^2", "Simpson", "0", "1")
         rows = compare_numerical_methods(inputs)
         self.assertEqual(len(rows), 10)
         self.assertTrue(any(row["method"] == "Simpson" and row["status"] == "ok" for row in rows))

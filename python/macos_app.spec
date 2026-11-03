@@ -3,7 +3,7 @@
 import os
 
 app_name = "Integral_Calculator_Python"
-app_version = os.environ.get("APP_VERSION", "5.1").strip()
+app_version = os.environ.get("APP_VERSION", "6.0").strip()
 if not app_version:
     raise ValueError("APP_VERSION must not be empty")
 hiddenimports = [

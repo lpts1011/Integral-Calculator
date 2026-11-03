@@ -26,21 +26,20 @@ class _MathPanel:
         pass
 
 
-class _ExampleTab(QWidget):
+class _ExampleCalculator(QWidget):
     history_record = Signal(object)
     plot_requested = Signal(str, float, float, object)
     plot_clear_requested = Signal()
     reset_requested = Signal()
 
-    def __init__(self, mode, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.mode = mode
         self.math_panel = _MathPanel()
         self.function_text = ""
         self.parameter_text = ""
+        self.method = "Auto"
         self.lower = _Field()
         self.upper = _Field()
-        self.split_points = _Field()
 
     def get_function_text(self):
         return self.function_text
@@ -52,6 +51,9 @@ class _ExampleTab(QWidget):
         self.parameter_text = str(value)
         return True
 
+    def set_method(self, method):
+        self.method = method
+
     def set_language(self, _text):
         pass
 
@@ -61,6 +63,9 @@ class _ExampleTab(QWidget):
 
 class _Plot(QWidget):
     def set_theme(self, _theme):
+        pass
+
+    def set_labels(self, _text):
         pass
 
     def plot_function(self, *_args):
@@ -96,7 +101,7 @@ class UsabilityWorkspaceTests(unittest.TestCase):
         from qt_main_window import IntegralCalculatorWindow
 
         self.window = IntegralCalculatorWindow(
-            tab_factory=lambda mode, parent: _ExampleTab(mode, parent),
+            tab_factory=_ExampleCalculator,
             plot_factory=_Plot,
             result_workspace_factory=_Results,
         )
@@ -119,25 +124,30 @@ class UsabilityWorkspaceTests(unittest.TestCase):
         self.assertFalse(hasattr(self.window, "graph_toggle_button"))
         self.assertFalse(hasattr(self.window, "history_toggle_button"))
 
-    def test_example_gallery_fills_the_matching_tab(self):
+    def test_example_gallery_fills_the_calculator(self):
+        calculator = self.window.calculator
+        dialog = self.window.show_examples()
+        dialog.examples_list.setCurrentRow(2)
+        dialog.apply_button.click()
+        self.assertEqual(calculator.function_text, "sin(20*x)")
+        self.assertEqual(calculator.method, "Adaptive Simpson")
+
         dialog = self.window.show_examples()
         dialog.examples_list.setCurrentRow(4)
         dialog.apply_button.click()
+        self.assertEqual(calculator.function_text, "1/x^2")
+        self.assertEqual(calculator.lower.value, "1")
+        self.assertEqual(calculator.upper.value, "inf")
+        self.assertEqual(calculator.method, "Auto")
 
-        self.assertEqual(self.window.tabs.currentIndex(), 2)
-        self.assertEqual(self.window.tab3.function_text, "1/x^2")
-        self.assertEqual(self.window.tab3.lower.value, "1")
-        self.assertEqual(self.window.tab3.upper.value, "inf")
-
-    def test_new_controls_are_localized_or_have_safe_fallbacks(self):
-        for language in INSTRUCTIONS:
-            with self.subTest(language=language):
-                text = ui_text(language)
-                for key in (
-                    "examples",
-                    "use_example",
-                ):
-                    self.assertTrue(text[key])
+    def test_both_languages_are_complete(self):
+        self.assertEqual(list(INSTRUCTIONS), ["English", "中文（简体）"])
+        english, chinese = ui_text("English"), ui_text("中文（简体）")
+        self.assertEqual(set(english), set(chinese))
+        for key, value in english.items():
+            if key != "tool_text" and isinstance(value, str) and any(c.isalpha() for c in value):
+                with self.subTest(key=key):
+                    self.assertNotEqual(chinese[key], value)
 
         self.window.change_language("中文（简体）")
         self.assertEqual(self.window.examples_button.text(), "示例")

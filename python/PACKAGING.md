@@ -91,7 +91,7 @@ xcrun notarytool store-credentials "integral-calculator-notary" \
 Then create a formal release:
 
 ```bash
-APP_VERSION=5.1 \
+APP_VERSION=6.0 \
 DEVELOPER_ID_APPLICATION="Developer ID Application: YOUR NAME (TEAM_ID)" \
 NOTARY_PROFILE="integral-calculator-notary" \
 ./build_macos_release.sh
@@ -157,9 +157,9 @@ accidental runtime dependency.
 
 ## Packaged runtime verification
 
-The v5 arm64 application requires macOS 13 or newer. Its Info.plist version and
+The arm64 application requires macOS 13 or newer. Its Info.plist version and
 minimum OS are set by `macos_app.spec`. Verify the actual installed runtime,
-including its symbolic/signal worker, FFT dependencies, and offline editor:
+including its numerical engine, symbolic worker, and offline editor:
 
 ```sh
 ~/Applications/Integral_Calculator_Python.app/Contents/MacOS/Integral_Calculator_Python \

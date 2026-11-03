@@ -8,13 +8,6 @@ from solving.utilities.lambdify import lambdify
 from parser_utils import x_sym
 
 
-FAST_METHODS = {
-    "Trapezoidal",
-    "Simpson",
-    "Gaussian Quadrature",
-}
-
-
 def normalize_lambdified_output(raw_value, x_input):
     """
     Lambdified constant expressions return a scalar even for array input.

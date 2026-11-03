@@ -1,7 +1,7 @@
 import unittest
 
 from symbolic_methods import compute_general_integral, compute_tab1_result
-from tab2_logic import prepare_tab2_inputs, run_tab2_calculation
+from tab2_logic import prepare_tab2_inputs, run_numerical_integration
 
 
 class SymbolicTab2Tests(unittest.TestCase):
@@ -19,18 +19,14 @@ class SymbolicTab2Tests(unittest.TestCase):
         result = compute_general_integral("exp(-x)", "0", "inf", timeout=0)
         self.assertEqual(result["type"], "exact")
 
-    def test_tab2_numeric_event_result(self):
-        events = []
-        inputs = prepare_tab2_inputs("x^2", "Numerical Integration", "Simpson", "0", "1", "")
-        run_tab2_calculation(inputs, events.append)
-        self.assertEqual(events[-1][0], "numeric_result")
-        self.assertAlmostEqual(events[-1][1], 1 / 3, places=10)
+    def test_numerical_integration_result(self):
+        value, _error, segments = run_numerical_integration(prepare_tab2_inputs("x^2", "Simpson", "0", "1"))
+        self.assertAlmostEqual(value, 1 / 3, places=10)
+        self.assertEqual(segments[0]["diagnostics"]["method"], "Simpson")
 
-    def test_tab2_symbolic_event_result(self):
-        events = []
-        inputs = prepare_tab2_inputs("x^2", "Symbolic Integration", "Trapezoidal", "0", "1", "")
-        run_tab2_calculation(inputs, events.append)
-        self.assertTrue(any(event[0] == "symbolic_result" and event[1] == "1/3" for event in events))
+    def test_numerical_methods_reject_infinite_limits(self):
+        with self.assertRaisesRegex(ValueError, "choose Auto"):
+            prepare_tab2_inputs("exp(-x)", "Simpson", "0", "inf")
 
 
 if __name__ == "__main__":

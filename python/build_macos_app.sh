@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 PYTHON_BIN="${PYTHON_BIN:-python3}"
-APP_VERSION="${APP_VERSION:-5.1}"
+APP_VERSION="${APP_VERSION:-6.0}"
 MACOS_SIGNING_IDENTITY="${MACOS_SIGNING_IDENTITY:--}"
 MACOS_ENTITLEMENTS="${MACOS_ENTITLEMENTS:-macos_distribution.entitlements}"
 
