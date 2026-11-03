@@ -2,7 +2,10 @@ import os
 import threading
 import time
 import unittest
-from symbolic_service import run_isolated
+from unittest.mock import patch
+
+import symbolic_service
+from symbolic_service import run_isolated, warm_up
 
 
 def identify_worker():
@@ -40,4 +43,15 @@ class SymbolicWorkerTests(unittest.TestCase):
                 run_isolated(slow_result, (), cancel=cancellation)
         finally:
             timer.cancel()
+        self.assertIsInstance(run_isolated(identify_worker, ()), int)
+
+    def test_warm_up_starts_reusable_worker(self):
+        warm_up()
+        self.assertIsInstance(run_isolated(identify_worker, ()), int)
+
+    def test_failed_start_reports_original_error(self):
+        symbolic_service._stop()
+        with patch("multiprocessing.context.SpawnProcess.start", side_effect=OSError("cannot spawn")):
+            with self.assertRaisesRegex(OSError, "cannot spawn"):
+                run_isolated(identify_worker, ())
         self.assertIsInstance(run_isolated(identify_worker, ()), int)

@@ -571,10 +571,11 @@ class QtAppTests(unittest.TestCase):
         fake_window = MagicMock()
         with patch.object(qt_app.QApplication, "instance", return_value=fake_app), patch.object(
             qt_app, "IntegralCalculatorWindow", return_value=fake_window
-        ):
+        ), patch.object(qt_app, "start_warm_up") as start_warm_up:
             self.assertEqual(qt_app.main(), 17)
         fake_app.setApplicationName.assert_called_once_with("Integral Calculator")
         fake_window.show.assert_called_once_with()
+        start_warm_up.assert_called_once_with()
 
 
 if __name__ == "__main__":

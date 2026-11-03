@@ -1,7 +1,6 @@
 from functools import lru_cache
 
 import calengine as np
-from scipy.integrate import quad
 from solving.calculus.util import singularities
 from solving.core.expr import Expr
 from solving.utilities.lambdify import lambdify
@@ -70,6 +69,7 @@ def build_numeric_callable(expr: Expr):
 
 
 def numeric_integrate_with_error(func, a, b):
+    from scipy.integrate import quad
     val, err = quad(func, a, b)
     return val, err
 

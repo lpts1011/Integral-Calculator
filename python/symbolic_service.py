@@ -1,6 +1,7 @@
 """Reusable isolated symbolic worker; terminate and replace it after a timeout."""
 import atexit
 import multiprocessing
+from importlib import import_module
 import threading
 import time
 
@@ -27,7 +28,8 @@ def _stop():
     global _PROCESS, _CONNECTION
     if _CONNECTION is not None:
         _CONNECTION.close()
-    if _PROCESS is not None:
+    # A process that failed to start has no pid and cannot be joined.
+    if _PROCESS is not None and _PROCESS.pid is not None:
         if _PROCESS.is_alive():
             _PROCESS.terminate()
         _PROCESS.join(1)
@@ -74,6 +76,19 @@ def run_isolated(function, args, timeout=8, cancel=None):
         raise
     finally:
         _LOCK.release()
+
+
+def _preload(module_names):
+    for name in module_names:
+        import_module(name)
+
+
+def warm_up(timeout=8):
+    """Start the worker and load the symbolic engine before the first request."""
+    try:
+        run_isolated(_preload, (("symbolic_methods",),), timeout)
+    except Exception:
+        pass  # The next request starts a fresh worker and reports any failure.
 
 
 atexit.register(_stop)

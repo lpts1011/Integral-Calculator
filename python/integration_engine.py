@@ -12,7 +12,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 import calengine as np
-from scipy.integrate import quad, simpson
+
+# SciPy is imported where it is used; it is a large share of application startup.
 
 
 class CalculationCancelled(ValueError):
@@ -156,6 +157,7 @@ def _structural_points_cached(expr, a, b):
 
 
 def _quad_checked(f, a, b, options, **kwargs):
+    from scipy.integrate import quad
     output = quad(f, a, b, epsabs=options.epsabs, epsrel=options.epsrel,
                   limit=min(1000, max(50, options.max_evaluations//42)), full_output=1, **kwargs)
     if len(output) > 3:
@@ -261,6 +263,7 @@ def _fixed(f, method, a, b, n):
         if method == "Trapezoidal":
             value = float(np.trapezoid(values,nodes))
         elif method == "Simpson":
+            from scipy.integrate import simpson
             value = float(simpson(values,x=nodes))
         else:
             value = float(3*(b-a)/n/8*(values[0]+values[-1]+3*np.sum(values[1:-1])-np.sum(values[3:n:3])))
