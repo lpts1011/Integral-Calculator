@@ -1,11 +1,12 @@
 import multiprocessing
+import warnings
 from functools import lru_cache
 
 from solving.core.numbers import Integer, nan, oo, zoo
 from solving.integrals.integrals import Integral, integrate
 from solving.printing.str import sstr
 
-from formatting import format_result_for_display, pretty_math_str
+from formatting import format_result_for_display, pretty_math_str, tidy_result
 from numeric_methods import (
     build_numeric_callable,
     numeric_integrate_with_error,
@@ -15,6 +16,7 @@ from numeric_methods import (
 from parser_utils import (
     evaluate_symbolic_function,
     has_complete_limits,
+    parse_input_to_float,
     parse_input_to_solving,
     x_sym,
 )
@@ -61,6 +63,8 @@ def _compute_tab1_result_direct(func_str, lower_text, upper_text):
         lower = parse_input_to_solving(lower_text)
         upper = parse_input_to_solving(upper_text)
         res = integrate(expr, (x_sym, lower, upper))
+        if not res.has(Integral):
+            res = tidy_result(res)
         antiderivative = integrate(expr, x_sym) if expr.is_polynomial(x_sym) else None
         info = format_result_for_display(res, symbolic_len_limit=50)
         raw_result = info["raw"]
@@ -79,7 +83,7 @@ def _compute_tab1_result_direct(func_str, lower_text, upper_text):
                 l_float,
                 u_float
             )
-            display_str = f"≈ {numeric_value:.3f}"
+            display_str = f"≈ {numeric_value:.10g}"
 
         if numeric_value is None:
             try:
@@ -112,6 +116,7 @@ def _compute_tab1_result_direct(func_str, lower_text, upper_text):
             "closed_form": False,
         }
 
+    ind = tidy_result(ind)
     return {
         "kind": "indefinite",
         "shown_func": shown_func,
@@ -150,7 +155,7 @@ def _compute_general_integral_direct(func_str, lower_text, upper_text):
             return {"type": "divergent", "expr": res}
     except Exception:
         pass
-    return {"type": "exact", "expr": res}
+    return {"type": "exact", "expr": tidy_result(res)}
 
 
 def compute_general_integral(func_str, lower_text, upper_text, timeout=SYMBOLIC_TIMEOUT_SECONDS, cancel=None):
@@ -159,3 +164,22 @@ def compute_general_integral(func_str, lower_text, upper_text, timeout=SYMBOLIC_
         (func_str, lower_text, upper_text),
         timeout, cancel,
     ))
+
+
+def numerical_fallback(func_str, lower_text, upper_text):
+    """Value and error estimate when no exact form is found, or not found in time."""
+    from scipy.integrate import IntegrationWarning
+
+    expr = evaluate_symbolic_function(func_str)
+    lower, upper = parse_input_to_float(lower_text), parse_input_to_float(upper_text)
+    f_num = build_numeric_callable(expr)
+    validate_numeric_integrand(expr, f_num, lower, upper)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", IntegrationWarning)
+        try:
+            return numeric_integrate_with_error(lambda t: numeric_scalar(f_num, t), lower, upper)
+        except IntegrationWarning as exc:
+            raise ValueError(
+                "No exact value was found and the numerical value did not converge; "
+                "the integral may diverge."
+            ) from exc

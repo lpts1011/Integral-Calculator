@@ -98,6 +98,7 @@ class ResultWorkspace(QWidget):
             "integration_steps",
             "no_result",
             "not_available",
+            "exact_too_complex",
             "divergent",
             "comparison_complete",
             "steps_loading",

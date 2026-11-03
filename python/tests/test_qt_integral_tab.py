@@ -182,6 +182,36 @@ class IntegralTabTests(unittest.TestCase):
         self.assertEqual(self.records[-1]["raw_type"], "divergent")
         self.assertIn("Divergent", self.records[-1]["display"])
 
+    def test_auto_simplifies_special_function_results(self):
+        self.fill("sin(x^2)")
+        with self.exact("compute_tab1_result"):
+            self.tab.calculate()
+        self.assertNotIn("gamma", self.records[-1]["raw"])
+        self.assertIn("fresnels", self.records[-1]["raw"])
+
+    def test_auto_shows_a_number_when_the_exact_form_is_complicated(self):
+        self.fill("sin(x^2)", "0", "1")
+        with self.exact("compute_tab1_result"):
+            self.tab.calculate()
+        self.assertIn("dx ≈ 0.3102683017", self.records[-1]["display"])
+        self.assertNotIn("= ≈", self.records[-1]["display"])
+
+    def test_auto_falls_back_to_a_number_when_exact_work_times_out(self):
+        from symbolic_methods import SymbolicTimeoutError
+
+        self.fill("exp(-x)*sin(x^2)", "0", "inf")
+        with patch("qt_integral_tab.compute_general_integral", side_effect=SymbolicTimeoutError("slow")):
+            self.tab.calculate()
+        record = self.records[-1]
+        self.assertEqual(record["type"], "improper")
+        self.assertAlmostEqual(record["numeric_value"], 0.2705135817, places=8)
+        self.assertIn("dx ≈ 0.2705135817", record["display"])
+
+        self.fill("sin(x^2)*exp(x)", "-0.35", "2*pi")
+        with patch("qt_integral_tab.compute_tab1_result", side_effect=SymbolicTimeoutError("slow")):
+            self.tab.calculate()
+        self.assertAlmostEqual(self.records[-1]["numeric_value"], 12.8344730052, places=8)
+
     def test_parameters_are_resolved_before_integrating(self):
         self.fill("a*x", "0", "1", "a=2")
         with self.exact("compute_tab1_result"):

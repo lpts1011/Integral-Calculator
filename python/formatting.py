@@ -1,5 +1,39 @@
+from solving.core.function import Function, count_ops
 from solving.integrals.integrals import Integral
 from solving.printing.str import sstr
+from solving.simplify.simplify import simplify
+
+
+ELEMENTARY_FUNCTIONS = frozenset({
+    "exp", "log", "sin", "cos", "tan", "cot", "sec", "csc",
+    "asin", "acos", "atan", "acot", "asec", "acsc",
+    "sinh", "cosh", "tanh", "coth", "sech", "csch",
+    "asinh", "acosh", "atanh", "acoth", "Abs", "sign", "Piecewise", "Max", "Min",
+})
+# A value with more operations than this reads better as a number.
+COMPLICATED_OPS = 20
+# Larger results are left as they are so simplification stays quick.
+SIMPLIFY_MAX_OPS = 150
+
+
+def tidy_result(expr):
+    """Simplify an integration result, e.g. gamma(3/4)/gamma(7/4) to 4/3."""
+    try:
+        if count_ops(expr) <= SIMPLIFY_MAX_OPS:
+            return simplify(expr)
+    except Exception:
+        pass
+    return expr
+
+
+def is_complicated(expr):
+    """True when a value needs special functions or is too long to read."""
+    try:
+        if any(type(func).__name__ not in ELEMENTARY_FUNCTIONS for func in expr.atoms(Function)):
+            return True
+        return count_ops(expr) > COMPLICATED_OPS
+    except Exception:
+        return False
 
 
 def pretty_math_str(expr):
@@ -48,7 +82,7 @@ def pretty_math_str(expr):
         return sstr(expr).replace("**", "^").replace("pi", "π")
 
 
-def format_result_for_display(expr, max_decimals=3, symbolic_len_limit=50):
+def format_result_for_display(expr, significant_digits=10, symbolic_len_limit=50):
     """
     Improved unified display formatting for symbolic/numeric results.
     Returns dict: {display, raw, type, numeric}
@@ -63,7 +97,7 @@ def format_result_for_display(expr, max_decimals=3, symbolic_len_limit=50):
             "numeric": None,
         }
 
-    if len(raw_str) <= symbolic_len_limit:
+    if len(raw_str) <= symbolic_len_limit and not is_complicated(expr):
         if "exp(exp" not in raw_str:
             return {
                 "display": pretty_math_str(expr),
@@ -75,7 +109,7 @@ def format_result_for_display(expr, max_decimals=3, symbolic_len_limit=50):
     try:
         val = float(expr.evalf())
         return {
-            "display": f"≈ {val:.{max_decimals}f}",
+            "display": f"≈ {val:.{significant_digits}g}",
             "raw": raw_str,
             "type": "exact",
             "numeric": val,

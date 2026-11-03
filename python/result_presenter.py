@@ -6,9 +6,11 @@ import math
 from typing import Any
 
 from solving.integrals.integrals import Integral, integrate
+from solving.parsing.solving_parser import parse_expr
 from solving.printing.latex import latex
 from solving.simplify.simplify import simplify
 
+from formatting import is_complicated
 from parser_utils import evaluate_symbolic_function, parse_input_to_solving, x_sym
 
 
@@ -39,11 +41,12 @@ def _parse_expression(value: Any):
     text = text.replace("π", "pi").replace("∞", "oo")
     if text.endswith("+ C"):
         text = text[:-3].rstrip()
-    return evaluate_symbolic_function(text)
-
-
-def _latex_value(value: Any) -> str:
-    return latex(_parse_expression(value))
+    try:
+        return evaluate_symbolic_function(text)
+    except Exception:
+        # Results the calculator produced may use special functions such as
+        # fresnels or gamma, which the input parser deliberately rejects.
+        return parse_expr(text)
 
 
 def _numeric_value(record: dict[str, Any]) -> float | None:
@@ -92,19 +95,23 @@ def build_result_summary(record: dict[str, Any] | None) -> dict[str, Any]:
     unavailable = _is_unavailable(record)
     exact: dict[str, str]
     result: dict[str, str]
+    numeric = _numeric_value(record)
 
     if record_type in ("numerical", "comparison") or unavailable:
         exact = {"text_key": "not_available"}
     else:
         try:
-            exact_latex = _latex_value(record.get("raw"))
-            if record_type == "indefinite":
-                exact_latex += r" + C"
-            exact = {"latex": exact_latex}
+            exact_expr = _parse_expression(record.get("raw"))
+            if numeric is not None and is_complicated(exact_expr):
+                exact = {"text_key": "exact_too_complex"}
+            else:
+                exact_latex = latex(exact_expr)
+                if record_type == "indefinite":
+                    exact_latex += r" + C"
+                exact = {"latex": exact_latex}
         except Exception:
             exact = {"text": str(record.get("raw") or record.get("display", ""))}
 
-    numeric = _numeric_value(record)
     if numeric is not None:
         result = {"latex": _number_latex(numeric)}
         estimate = record.get("error")

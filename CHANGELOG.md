@@ -38,6 +38,13 @@ one generation: 2.0–2.6 became 1.1–1.7, 2.7–2.9 became 2.0–2.2, 3.1-beta
 
 - Switching the language or theme, or panning the graph, no longer closes the app
   on recent macOS versions (Qt crashed while drawing the busy and move cursors).
+- Exact results are simplified, so ∫ sin(x²) dx is √2·√π·S(√2·x/√π)/2 instead of
+  a long expression with gamma functions, and results that use special functions
+  are shown as typeset formulas instead of plain text.
+- When an exact value needs special functions or is long, **Auto** shows the
+  numerical value instead. When no exact form is found in time, including for
+  infinite limits, **Auto** gives the numerical value instead of an error.
+- History entries no longer show "= ≈" before approximate values.
 
 ### Removed
 

@@ -31,7 +31,12 @@ from parameter_utils import display_function_with_parameters, resolve_function_t
 from parser_utils import has_complete_limits, parse_input_to_float
 from qt_async import run_in_background
 from qt_dialogs import show_error_dialog, show_information_dialog
-from symbolic_methods import compute_general_integral, compute_tab1_result
+from symbolic_methods import (
+    SymbolicTimeoutError,
+    compute_general_integral,
+    compute_tab1_result,
+    numerical_fallback,
+)
 from tab2_logic import compare_numerical_methods, prepare_tab2_inputs, run_numerical_integration
 
 
@@ -55,6 +60,11 @@ FIELDS = (
     ("function", FieldRole.EXPRESSION, "integrand", "func", "Enter target function:"),
     ("parameters", FieldRole.PARAMETERS, "parameters", "parameters", "Parameters:"),
 )
+
+
+def _equals(display: str) -> str:
+    """Join a result to its integral without writing "= ≈"."""
+    return display if display.startswith("≈") else f"= {display}"
 
 
 class IntegralTab(QWidget):
@@ -224,14 +234,10 @@ class IntegralTab(QWidget):
             elif has_complete_limits(lower, upper) and not all(
                 np.isfinite(parse_input_to_float(bound)) for bound in (lower, upper)
             ):
-                work = lambda: compute_general_integral(
-                    context["resolved_func"], lower, upper, cancel=self.cancel_event
-                )
+                work = lambda: self._improper_or_number(context)
                 finish = lambda result: self._finish_improper(result, context)
             else:
-                work = lambda: compute_tab1_result(
-                    context["resolved_func"], lower, upper, cancel=self.cancel_event
-                )
+                work = lambda: self._exact_or_number(context)
                 finish = lambda result: self._finish_exact(result, context)
         except Exception as exc:
             self._show_error("integration_error", "Error in integration: ", exc)
@@ -244,6 +250,37 @@ class IntegralTab(QWidget):
             on_error=lambda exc: self._show_error("integration_error", "Error in integration: ", exc),
             on_finished=self._finish_work,
         )
+
+    # Auto: when no exact form is found in time, give the numerical value instead.
+
+    def _exact_or_number(self, context: dict[str, str]) -> dict[str, object]:
+        func, lower, upper = context["resolved_func"], context["lower"], context["upper"]
+        try:
+            return compute_tab1_result(func, lower, upper, cancel=self.cancel_event)
+        except SymbolicTimeoutError:
+            if not has_complete_limits(lower, upper):
+                raise
+        value, error = numerical_fallback(func, lower, upper)
+        return {
+            "kind": "definite",
+            "lower_text": lower,
+            "upper_text": upper,
+            "display_str": f"≈ {value:.10g}",
+            "raw_result": "",
+            "raw_type": "unevaluated",
+            "numeric_value": value,
+            "numeric_err": error,
+        }
+
+    def _improper_or_number(self, context: dict[str, str]) -> dict[str, object]:
+        func, lower, upper = context["resolved_func"], context["lower"], context["upper"]
+        try:
+            out = compute_general_integral(func, lower, upper, cancel=self.cancel_event)
+        except SymbolicTimeoutError:
+            out = {"type": "unevaluated", "expr": None}
+        if out["type"] == "unevaluated":
+            out["numeric"] = numerical_fallback(func, lower, upper)
+        return out
 
     def compare_methods(self) -> None:
         if not self._can_start():
@@ -308,7 +345,7 @@ class IntegralTab(QWidget):
             lower, upper = result["lower_text"], result["upper_text"]
             self._record(
                 "definite",
-                f"{self._t('history_definite', 'Definite')}: ∫[{lower}, {upper}] {shown} dx = {result['display_str']}",
+                f"{self._t('history_definite', 'Definite')}: ∫[{lower}, {upper}] {shown} dx {_equals(result['display_str'])}",
                 context,
                 lower=lower,
                 upper=upper,
@@ -335,19 +372,24 @@ class IntegralTab(QWidget):
         self.plot_clear_requested.emit()
 
     def _finish_improper(self, out: dict[str, object], context: dict[str, str]) -> None:
+        value, error = out.get("numeric") or (None, None)
         if out["type"] == "exact":
             display = format_result_for_display(out["expr"])["display"]
+        elif value is not None:
+            display = f"≈ {value:.10g}"
         else:
             display = self._t("divergent", "Divergent") if out["type"] == "divergent" else "(no closed-form)"
         lower, upper = context["lower"], context["upper"]
         self._record(
             "improper",
-            f"{self._t('history_improper', 'Improper')}: ∫[{lower}, {upper}] {context['shown_func']} dx = {display}",
+            f"{self._t('history_improper', 'Improper')}: ∫[{lower}, {upper}] {context['shown_func']} dx {_equals(display)}",
             context,
-            raw=out.get("expr"),
+            raw=out.get("expr") if value is None else "",
             raw_type=out["type"],
             lower=lower,
             upper=upper,
+            numeric_value=value,
+            error=error,
         )
         self.plot_clear_requested.emit()
 

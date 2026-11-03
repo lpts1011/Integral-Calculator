@@ -67,6 +67,7 @@ UI = {
     "total_time": "Total Time",
     "integration_steps": "Integration Steps",
     "no_result": "Run a calculation to see the result.",
+    "exact_too_complex": "The exact form is too complex to read; the numerical value is shown below.",
     "not_available": "Not available",
     "divergent": "Divergent integral",
     "comparison_complete": "Method comparison complete",

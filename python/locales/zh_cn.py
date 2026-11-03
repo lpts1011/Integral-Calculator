@@ -67,6 +67,7 @@ UI = {
     "total_time": "积分所用总时间",
     "integration_steps": "积分步骤",
     "no_result": "完成一次计算后将在这里显示结果。",
+    "exact_too_complex": "精确形式过于复杂，下方直接显示数值结果。",
     "not_available": "不适用",
     "divergent": "积分发散",
     "comparison_complete": "积分方法比较已完成",

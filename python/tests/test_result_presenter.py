@@ -76,6 +76,31 @@ class ResultPresenterTests(unittest.TestCase):
         self.assertFalse(supports_symbolic_steps(record))
         self.assertEqual(build_symbolic_steps(record), [])
 
+    def test_special_function_results_render_as_formulas(self):
+        summary = build_result_summary({
+            "type": "indefinite",
+            "raw": "sqrt(2)*sqrt(pi)*fresnels(sqrt(2)*x/sqrt(pi))/2",
+            "raw_type": "exact",
+        })
+        self.assertIn(r"\frac{\sqrt{2} \sqrt{\pi} S\left(", summary["exact"]["latex"])
+        self.assertTrue(summary["exact"]["latex"].endswith("+ C"))
+
+    def test_complicated_definite_value_is_shown_as_a_number(self):
+        summary = build_result_summary({
+            "type": "definite",
+            "raw": "sqrt(2)*sqrt(pi)*fresnels(sqrt(2)/sqrt(pi))/2",
+            "raw_type": "exact",
+            "numeric_value": 0.3102683017233811,
+        })
+        self.assertEqual(summary["exact"], {"text_key": "exact_too_complex"})
+        self.assertIn("0.310268301723", summary["result"]["latex"])
+
+    def test_simple_definite_value_keeps_its_exact_form(self):
+        summary = build_result_summary({
+            "type": "definite", "raw": "pi/4", "raw_type": "exact", "numeric_value": 0.785398,
+        })
+        self.assertEqual(summary["exact"]["latex"], r"\frac{\pi}{4}")
+
 
 if __name__ == "__main__":
     unittest.main()
