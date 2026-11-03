@@ -51,7 +51,7 @@ compatible macOS Python ABIs; other source environments use the installed NumPy.
 Desktop dependencies and builds are documented in
 [python/PACKAGING.md](python/PACKAGING.md).
 
-The Python suite includes integration, signal correctness, editor bridge, UI,
+The Python suite includes integration, symbolic, editor bridge, UI,
 worker cancellation/recovery, and packaging tests.
 
 ## Releases

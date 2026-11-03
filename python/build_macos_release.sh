@@ -9,8 +9,8 @@ NOTARY_PROFILE="${NOTARY_PROFILE:-integral-calculator-notary}"
 RELEASE_DIR="${RELEASE_DIR:-$PWD/release}"
 INSTALLED_APP="${INTEGRAL_CALCULATOR_APP_PATH:-$HOME/Applications/Integral_Calculator_Python.app}"
 
-if [[ ! "$APP_VERSION" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
-    echo "APP_VERSION must contain one to three numeric components: $APP_VERSION"
+if [[ ! "$APP_VERSION" =~ ^[0-9]+\.[0-9]+$ ]]; then
+    echo "APP_VERSION must be MAJOR.MINOR, for example 6.0: $APP_VERSION"
     exit 1
 fi
 
