@@ -347,8 +347,6 @@ class IntegralCalculatorWindow(QMainWindow):
 
         initial_function = self.calculator.get_function_text()
         dialog = MathToolsDialog(
-            self.calculator.set_function_text,
-            self.calculator.set_parameter_text,
             self,
             initial_function=initial_function,
             text=self.text,

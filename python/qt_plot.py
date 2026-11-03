@@ -5,9 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from matplotlib import font_manager, rcParams
+from matplotlib.backend_tools import Cursors
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from plot_utils import clear_plot, plot_embedded
@@ -35,6 +36,23 @@ def _use_cjk_font_fallback() -> None:
 
 _use_cjk_font_fallback()
 
+# On macOS, Qt draws its own wait and size-all cursors, and creating either one
+# aborts the app on current macOS releases. Matplotlib asks for them while it
+# redraws (for example after a language change) and in pan mode, so the graph
+# uses the equivalent system cursors instead.
+SAFE_CURSORS = {
+    Cursors.WAIT: Qt.CursorShape.BusyCursor,
+    Cursors.MOVE: Qt.CursorShape.OpenHandCursor,
+}
+
+
+class _PlotCanvas(FigureCanvasQTAgg):
+    def set_cursor(self, cursor):
+        if cursor in SAFE_CURSORS:
+            self.setCursor(SAFE_CURSORS[cursor])
+        else:
+            super().set_cursor(cursor)
+
 
 class QtPlotWidget(QWidget):
     """Embed the existing calculator plot in a Qt widget."""
@@ -44,7 +62,7 @@ class QtPlotWidget(QWidget):
         self.figure = Figure(figsize=(8, 5.2), dpi=100)
         self.axes = self.figure.add_subplot(111)
         self.ax = self.axes
-        self.canvas = FigureCanvasQTAgg(self.figure)
+        self.canvas = _PlotCanvas(self.figure)
         self.toolbar = NavigationToolbar2QT(self.canvas, self)
         self.theme = theme
         self.labels: dict[str, object] | None = None

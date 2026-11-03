@@ -1,9 +1,23 @@
 # Changelog
 
 All notable project changes are recorded here. Versions use two-part `MAJOR.MINOR`
-numbers, and release tags are named `vMAJOR.MINOR`.
+numbers, and release tags are named `vMAJOR.MINOR`. The major number changes only
+when the program changes substantially:
 
-## [6.0] - 2026-11-03
+| Major | Edition | What changed |
+| --- | --- | --- |
+| 6 | Integrated Edition | One calculator screen, four Math Tools, two languages |
+| 5 | Detailed Edition | Reliable numerical engine with full diagnostics, many tools, nine languages |
+| 4 | | Complete source in the repository and the live math editor |
+| 3 | | Math Tools workspace, first macOS app, bundled math engine |
+| 2 | | Multi-module application with three integration tabs and tests |
+| 1 | | Single-file Python program |
+
+Releases before 4.0 were renumbered on 2026-11-03 so that each major number marks
+one generation: 2.0–2.6 became 1.1–1.7, 2.7–2.9 became 2.0–2.2, 3.1-beta became
+3.0-beta, 3.1 became 3.0, and 3.2 became 3.1.
+
+## [6.0] - 2026-11-03 — Integrated Edition
 
 ### Changed
 
@@ -14,13 +28,16 @@ numbers, and release tags are named `vMAJOR.MINOR`.
 - The result panel is the single place results appear; it now also says when an
   improper integral diverges. Progress and **Cancel** appear only while a
   calculation runs.
-- Math Tools is one list of ten tools: Area & Average, Polar Area, Arc Length &
-  Volume, Multiple Integrals, Taylor Series, Fourier/Laplace/ODE, Integration
-  Techniques, Verify Antiderivative, Parameter Slider, and Piecewise Builder.
-  Editors grow to fit their fields.
+- Math Tools is one list of four tools: Area, Polar Area, Arc Length & Volume, and
+  Integration Techniques. Editors grow to fit their fields.
 - The interface is complete in English and Simplified Chinese, including Math
   Tools, graph labels, history entries, and the theme menu. Graphs use a Chinese
   font when one is installed.
+
+### Fixed
+
+- Switching the language or theme, or panning the graph, no longer closes the app
+  on recent macOS versions (Qt crashed while drawing the busy and move cursors).
 
 ### Removed
 
@@ -28,14 +45,16 @@ numbers, and release tags are named `vMAJOR.MINOR`.
   numerical engine keeps its defaults and automatic breakpoints.
 - Method recommendations and the "Apply Recommendation" button (Auto already
   chooses), the "View Exact Result" pop-up, and the duplicate result line.
-- Math Tools pages that repeated other features: Convergence Table, Convergence,
-  Error Plot, Analysis, Sensitivity, and the separate Double Integral page.
+- Math Tools pages that repeated other features or went beyond single integrals:
+  Average Value, Convergence Table, Convergence, Error Plot, Analysis, Sensitivity,
+  Double Integral, Multiple Integrals, Taylor Series, Fourier/Laplace/ODE, Verify
+  Antiderivative, Parameter Slider, and Piecewise Builder.
 - The Signal Integration workspace (CSV import, noise/drift, convolution, Fourier
   reconstruction) and its example data.
 - Traditional Chinese, Japanese, Korean, Spanish, French, Arabic, and Hindi, which
   were only partly translated.
 
-## [5.1] - 2026-11-03
+## [5.1] - 2026-11-03 — Detailed Edition
 
 ### Changed
 
@@ -47,7 +66,9 @@ numbers, and release tags are named `vMAJOR.MINOR`.
 - Faster graph rendering: vectorized zero-crossing search, area shading without
   per-region interpolation, and fixed legend placement for dense plots. Plots of
   high-frequency functions render about 5× faster; ordinary plots are unchanged.
-
+- Faster start: SciPy loads where it is used, and the symbolic worker warms up in
+  the background after the window opens, so the first exact answer takes about
+  57 ms instead of 370 ms.
 - Version numbers, Git tags, release titles, and download file names now use
   two-part names (`v5.0`, `v4.1`, `v3.1-beta`, …).
 
@@ -60,7 +81,7 @@ numbers, and release tags are named `vMAJOR.MINOR`.
   `monte_carlo_stratified`), an unused plotting helper, a duplicate plot-theme
   function, an obsolete symbolic worker, unused attributes, and unused imports.
 
-## [5.0] - 2026-10-08
+## [5.0] - 2026-10-08 — Detailed Edition
 
 ### Added
 

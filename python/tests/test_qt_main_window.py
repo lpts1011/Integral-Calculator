@@ -224,6 +224,21 @@ class QtPrimitiveTests(unittest.TestCase):
         self.assertIsNotNone(widget.toolbar.zoom)
         self.assertIsNotNone(widget.toolbar.save_figure)
 
+    def test_plot_never_uses_cursors_that_crash_qt_on_macos(self):
+        from matplotlib.backend_tools import Cursors
+
+        widget = QtPlotWidget()
+        expected = {
+            Cursors.WAIT: Qt.CursorShape.BusyCursor,
+            Cursors.MOVE: Qt.CursorShape.OpenHandCursor,
+            Cursors.HAND: Qt.CursorShape.PointingHandCursor,
+            Cursors.SELECT_REGION: Qt.CursorShape.CrossCursor,
+        }
+        for cursor, shape in expected.items():
+            with self.subTest(cursor=cursor):
+                widget.canvas.set_cursor(cursor)
+                self.assertEqual(widget.canvas.cursor().shape(), shape)
+
     def test_plot_widget_applies_theme_without_reimplementing_sampling(self):
         widget = QtPlotWidget()
         widget.set_theme(
@@ -470,22 +485,18 @@ class QtMainWindowWorkflowTests(unittest.TestCase):
             copy_label,
         )
 
-    def test_math_tools_opens_with_calculator_context_and_inserts_into_it(self):
+    def test_math_tools_opens_with_calculator_context(self):
         created = []
 
         class StrictMathToolsDialog:
             def __init__(
                 self,
-                insert_function,
-                insert_parameters,
                 parent,
                 *,
                 initial_function,
                 text,
                 theme_name,
             ):
-                self.insert_function = insert_function
-                self.insert_parameters = insert_parameters
                 self.parent = parent
                 self.initial_function = initial_function
                 self.text = text
@@ -509,10 +520,6 @@ class QtMainWindowWorkflowTests(unittest.TestCase):
         self.assertIs(dialog.text, self.window.text)
         self.assertEqual(dialog.theme_name, "Dark")
         self.assertTrue(dialog.was_shown)
-        dialog.insert_function("a*x")
-        dialog.insert_parameters("a=2")
-        self.assertEqual(self.calculator.function_text, "a*x")
-        self.assertEqual(self.calculator.parameter_text, "a=2")
 
 
 class QtAppTests(unittest.TestCase):

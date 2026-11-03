@@ -10,16 +10,12 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
-    QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
-    QLabel,
-    QLineEdit,
     QListWidget,
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
-    QSlider,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -28,21 +24,11 @@ from PySide6.QtWidgets import (
 from math_editor.panel import MathEditorPanel
 from math_editor.syntax import FieldRole
 from math_extensions import (
-    build_piecewise_expression,
-    compute_average_and_area,
-    compute_fourier_series,
+    compute_area_breakdown,
     compute_geometry_bundle,
-    compute_laplace_transform,
     compute_polar_area,
-    compute_polar_double_integral,
-    compute_taylor_expansion,
-    compute_triple_integral,
-    compute_variable_double_integral,
     integration_by_parts_helper,
-    parameter_assignment,
-    solve_simple_ode,
     substitution_integral_helper,
-    verify_antiderivative,
 )
 from qt_dialogs import show_error_dialog
 from qt_jobs import JobRunner
@@ -56,31 +42,13 @@ class FieldSpec:
     label: str
     role: FieldRole
     default: str = ""
-    enabled: bool = True
-
-
-class UncappedLineEdit(QLineEdit):
-    """A native text input without QLineEdit's short default length cap."""
-
-    def __init__(
-        self,
-        default: str = "5",
-        *,
-        parent: QWidget | None = None,
-    ) -> None:
-        super().__init__(str(default), parent)
-        self.setMaxLength(2_147_483_647)
 
 
 class MathToolsDialog(QDialog):
     """Integration helpers, listed on the left and shown one at a time."""
 
-    MULTIPLE_INTEGRAL_MODES = ("Double", "Polar double", "Triple")
-
     def __init__(
         self,
-        insert_function: Callable[[str], object],
-        insert_parameters: Callable[[str], object],
         parent: QWidget | None = None,
         *,
         initial_function: str = "",
@@ -90,8 +58,6 @@ class MathToolsDialog(QDialog):
     ) -> None:
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
-        self.insert_function = insert_function
-        self.insert_parameters = insert_parameters
         self.panel_factory = panel_factory
         self.initial_function = str(initial_function).strip()
         self.text = dict(text or {})
@@ -126,16 +92,10 @@ class MathToolsDialog(QDialog):
         layout.addWidget(self.cancel_button)
 
         for build in (
-            self._build_average_area,
+            self._build_area,
             self._build_polar,
             self._build_geometry,
-            self._build_multiple_integrals,
-            self._build_taylor,
-            self._build_transforms,
             self._build_techniques,
-            self._build_verification,
-            self._build_parameter_slider,
-            self._build_piecewise,
         ):
             build()
         self.tool_list.setCurrentRow(0)
@@ -151,9 +111,6 @@ class MathToolsDialog(QDialog):
         self,
         title: str,
         specs: tuple[FieldSpec, ...],
-        *,
-        result: bool = True,
-        minimum_editor_height: int | None = None,
     ) -> tuple[QWidget, QVBoxLayout]:
         page = QWidget(self)
         page_layout = QVBoxLayout(page)
@@ -167,11 +124,9 @@ class MathToolsDialog(QDialog):
                 spec.default,
                 label=self._tr(spec.label),
             )
-            field.set_enabled(spec.enabled)
             self.math_fields[spec.name] = field
         panel.set_theme(self.theme_name)
-        if minimum_editor_height is None:
-            minimum_editor_height = max(90, 58 * len(specs))
+        minimum_editor_height = max(90, 58 * len(specs))
         panel.setMinimumHeight(minimum_editor_height)
         if hasattr(panel, "content_height_changed"):
             # Grow with the editor's rendered content so no field is clipped.
@@ -180,13 +135,12 @@ class MathToolsDialog(QDialog):
                     panel.setMinimumHeight(max(minimum, int(height) + 4))
             )
         page_layout.addWidget(panel)
-        if result:
-            output = QPlainTextEdit(page)
-            output.setReadOnly(True)
-            output.setObjectName(f"{panel_key}Result")
-            output.setMinimumHeight(115)
-            self.results[panel_key] = output
-            page_layout.addWidget(output, stretch=1)
+        output = QPlainTextEdit(page)
+        output.setReadOnly(True)
+        output.setObjectName(f"{panel_key}Result")
+        output.setMinimumHeight(115)
+        self.results[panel_key] = output
+        page_layout.addWidget(output, stretch=1)
         page_layout.addStretch(1)
 
         scroll = QScrollArea(self)
@@ -257,37 +211,33 @@ class MathToolsDialog(QDialog):
                 return index
         return max(0, layout.count() - 1)
 
-    def _build_average_area(self) -> None:
-        page, layout = self._page("Area & Average", (
+    def _build_area(self) -> None:
+        page, layout = self._page("Area", (
             FieldSpec(
-                "average.function",
+                "area.function",
                 "Function:",
                 FieldRole.EXPRESSION,
                 self._active_function_default("x"),
             ),
-            FieldSpec("average.lower", "Lower limit:", FieldRole.BOUND, "-1"),
-            FieldSpec("average.upper", "Upper limit:", FieldRole.BOUND, "1"),
+            FieldSpec("area.lower", "Lower limit:", FieldRole.BOUND, "-1"),
+            FieldSpec("area.upper", "Upper limit:", FieldRole.BOUND, "1"),
         ))
         tr = self._tr
 
         def compute():
-            arguments = (self._field("average.function"), self._field("average.lower"), self._field("average.upper"))
+            arguments = (self._field("area.function"), self._field("area.lower"), self._field("area.upper"))
 
-            def present(payload):
-                average, area = payload
-                self._set_result("area_average", (
-                    f"{tr('Integral:')} {average['integral']}",
-                    f"{tr('Average value:')} {average['average']} ({average['numeric']:.10g})",
-                    "",
+            def present(area):
+                self._set_result("area", (
                     f"{tr('Signed integral:')} {area['signed']:.12g}",
                     f"{tr('Absolute area:')} {area['absolute']:.12g}",
                     f"{tr('Positive area:')} {area['positive_area']:.12g}",
                     f"{tr('Negative area:')} {area['negative_area']:.12g}",
                 ))
-                return average, area
-            return self._submit_job(compute_average_and_area, arguments, present)
+                return area
+            return self._submit_job(compute_area_breakdown, arguments, present)
 
-        self._button(page, layout, "average.compute", "Compute Area and Average", compute)
+        self._button(page, layout, "area.compute", "Compute Area", compute)
 
     def _build_polar(self) -> None:
         page, layout = self._page("Polar Area", (
@@ -355,110 +305,6 @@ class MathToolsDialog(QDialog):
 
         self._button(page, layout, "geometry.compute", "Compute Arc Length and Volume", compute)
 
-    def _build_multiple_integrals(self) -> None:
-        page, layout = self._page("Multiple Integrals", (
-            FieldSpec("multi.function", "Function:", FieldRole.EXPRESSION, "x+y"),
-            FieldSpec("multi.a", "x / θ lower limit:", FieldRole.BOUND, "0"),
-            FieldSpec("multi.b", "x / θ upper limit:", FieldRole.BOUND, "1"),
-            FieldSpec("multi.c", "y / r lower limit:", FieldRole.BOUND, "0"),
-            FieldSpec("multi.d", "y / r upper limit:", FieldRole.BOUND, "1"),
-            FieldSpec("multi.e", "z lower limit:", FieldRole.BOUND, "0"),
-            FieldSpec("multi.f", "z upper limit:", FieldRole.BOUND, "1"),
-        ), minimum_editor_height=430)
-        mode = QComboBox(page)
-        mode.addItems([self._tr(name) for name in self.MULTIPLE_INTEGRAL_MODES])
-        self.native_controls["multi.mode"] = mode
-        self._native_form(layout).addRow(self._tr("Type:"), mode)
-        tr = self._tr
-
-        def compute():
-            function = self._field("multi.function")
-            a, b, c, d, e, f = (self._field(f"multi.{name}") for name in "abcdef")
-            helper, arguments = (
-                (compute_variable_double_integral, (function, a, b, c, d)),
-                (compute_polar_double_integral, (function, c, d, a, b)),
-                (compute_triple_integral, (function, a, b, c, d, e, f)),
-            )[mode.currentIndex()]
-
-            def present(result):
-                self._set_result("multiple_integrals", (
-                    f"{tr('Exact result:')} {result['exact']}",
-                    f"{tr('Numeric result:')} {result['numeric']:.10g}",
-                ))
-                return result
-            return self._submit_job(helper, arguments, present)
-
-        self._button(page, layout, "multi.compute", "Compute Integral", compute)
-
-    def _build_taylor(self) -> None:
-        page, layout = self._page("Taylor Series", (
-            FieldSpec(
-                "taylor.function",
-                "Function:",
-                FieldRole.EXPRESSION,
-                self._active_function_default("sin(x)"),
-            ),
-            FieldSpec("taylor.point", "Expansion point:", FieldRole.BOUND, "0"),
-        ))
-        order = UncappedLineEdit("5", parent=page)
-        self.native_controls["taylor.order"] = order
-        self._native_form(layout).addRow(self._tr("Order:"), order)
-        tr = self._tr
-
-        def compute():
-            arguments = (self._field("taylor.function"), self._field("taylor.point"), order.text())
-
-            def present(result):
-                self._set_result("taylor_series", (
-                    f"{tr('Point:')} {result['point']}",
-                    f"{tr('Order:')} {result['order']}",
-                    f"{tr('Polynomial:')} {result['polynomial']}",
-                    f"{tr('Series:')} {result['series']}",
-                ))
-                return result
-            return self._submit_job(compute_taylor_expansion, arguments, present)
-
-        self._button(page, layout, "taylor.compute", "Build Taylor Polynomial", compute)
-
-    def _build_transforms(self) -> None:
-        page, layout = self._page("Fourier, Laplace & ODE", (
-            FieldSpec("transforms.function", "Function:", FieldRole.EXPRESSION, "exp(-x)"),
-            FieldSpec("transforms.period", "Fourier period:", FieldRole.BOUND, "2*pi"),
-            FieldSpec("transforms.ode", "Differential equation:", FieldRole.EQUATION, "y'=x*y"),
-        ))
-        terms = UncappedLineEdit("5", parent=page)
-        self.native_controls["transforms.terms"] = terms
-        self._native_form(layout).addRow(self._tr("Fourier terms:"), terms)
-        tr = self._tr
-
-        def fourier():
-            arguments = (self._field("transforms.function"), self._field("transforms.period"), terms.text())
-
-            def present(result):
-                self._set_result("fourier_laplace_ode", (tr("Fourier series approximation:"), str(result["series"])))
-                return result
-            return self._submit_job(compute_fourier_series, arguments, present)
-
-        def laplace():
-            def present(result):
-                self._set_result("fourier_laplace_ode", (
-                    tr("Laplace transform:"), str(result["transform"]), "",
-                    tr("Inverse transform:"), str(result["inverse"]),
-                ))
-                return result
-            return self._submit_job(compute_laplace_transform, (self._field("transforms.function"),), present)
-
-        def ode():
-            result = solve_simple_ode(self._field("transforms.ode"))
-            self._set_result("fourier_laplace_ode", (
-                tr("Equation:"), str(result["equation"]), "", tr("Solution:"), str(result["solution"]),
-            ))
-            return result
-
-        self._button(page, layout, "transforms.fourier", "Fourier Series", fourier)
-        self._button(page, layout, "transforms.laplace", "Laplace Transform", laplace)
-        self._button(page, layout, "transforms.ode", "Solve Equation", ode)
-
     def _build_techniques(self) -> None:
         page, layout = self._page("Integration Techniques", (
             FieldSpec("techniques.function", "Integrand:", FieldRole.EXPRESSION, "2*x*cos(x^2)"),
@@ -501,115 +347,5 @@ class MathToolsDialog(QDialog):
         self._button(page, layout, "techniques.substitute", "Show Substitution", substitution)
         self._button(page, layout, "techniques.parts", "Show By Parts", by_parts)
 
-    def _build_verification(self) -> None:
-        page, layout = self._page("Verify Antiderivative", (
-            FieldSpec("verify.function", "Integrand:", FieldRole.EXPRESSION, "sin(x)"),
-            FieldSpec("verify.antiderivative", "Candidate antiderivative:", FieldRole.EXPRESSION, "-cos(x)"),
-        ))
-        tr = self._tr
 
-        def compute():
-            arguments = (self._field("verify.function"), self._field("verify.antiderivative"))
-
-            def present(result):
-                status = tr("Verified.") if result["ok"] else tr("Not verified.")
-                self._set_result("verify_antiderivative", (f"{status} {tr('Difference:')} {result['difference']}",))
-                return result
-            return self._submit_job(verify_antiderivative, arguments, present)
-
-        self._button(page, layout, "verify.compute", "Verify Antiderivative", compute)
-
-    def _build_parameter_slider(self) -> None:
-        page, layout = self._page("Parameter Slider", (
-            FieldSpec(
-                "parameter.function",
-                "Function:",
-                FieldRole.EXPRESSION,
-                self._active_function_default("a*x^2"),
-            ),
-            FieldSpec("parameter.assignment", "Current assignment:", FieldRole.PARAMETERS, "a=1", enabled=False),
-        ), result=False)
-        name = QLineEdit("a", page)
-        minimum = QDoubleSpinBox(page)
-        maximum = QDoubleSpinBox(page)
-        for spin in (minimum, maximum):
-            spin.setRange(-1_000_000, 1_000_000)
-            spin.setDecimals(6)
-        minimum.setValue(0)
-        maximum.setValue(5)
-        slider = QSlider(Qt.Orientation.Horizontal, page)
-        slider.setRange(0, 1000)
-        slider.setValue(200)
-        value_label = QLabel("a=1", page)
-        self.native_controls.update({
-            "parameter.name": name, "parameter.minimum": minimum,
-            "parameter.maximum": maximum, "parameter.slider": slider,
-            "parameter.value_label": value_label,
-        })
-        form = self._native_form(layout)
-        form.addRow(self._tr("Parameter:"), name)
-        form.addRow(self._tr("Minimum:"), minimum)
-        form.addRow(self._tr("Maximum:"), maximum)
-        form.addRow(value_label, slider)
-
-        def current_value() -> float:
-            return minimum.value() + (maximum.value() - minimum.value()) * slider.value() / 1000.0
-
-        def apply_value():
-            assignment = parameter_assignment(name.text(), current_value())
-            value_label.setText(assignment)
-            self.math_fields["parameter.assignment"].set_text(assignment)
-            self.insert_function(self._field("parameter.function"))
-            self.insert_parameters(assignment)
-            return assignment
-
-        def update_range():
-            if minimum.value() >= maximum.value():
-                raise ValueError(self._tr("Maximum must be greater than minimum."))
-            return apply_value()
-
-        slider.valueChanged.connect(lambda _value: self._guard(self._tr("Parameter Slider"), apply_value))
-        self._button(page, layout, "parameter.range", "Update Range", update_range)
-        self._button(page, layout, "parameter.apply", "Apply Value", apply_value)
-        self._parameter_apply = apply_value
-
-    def _build_piecewise(self) -> None:
-        specs: list[FieldSpec] = []
-        defaults = (("x", "x<0"), ("x^2", "True"), ("", ""))
-        for index, (expression, condition) in enumerate(defaults, 1):
-            specs.extend((
-                FieldSpec(f"piecewise.expression{index}", f"Expression {index}:", FieldRole.EXPRESSION, expression),
-                FieldSpec(f"piecewise.condition{index}", f"Condition {index}:", FieldRole.EXPRESSION, condition),
-            ))
-        specs.append(FieldSpec(
-            "piecewise.result", "Generated expression:", FieldRole.EXPRESSION, "", enabled=False
-        ))
-        page, layout = self._page(
-            "Piecewise Builder", tuple(specs), result=False, minimum_editor_height=430
-        )
-
-        def build():
-            pieces = [
-                (self._field(f"piecewise.expression{i}"), self._field(f"piecewise.condition{i}"))
-                for i in range(1, 4)
-            ]
-            expression = build_piecewise_expression(pieces)
-            self.math_fields["piecewise.result"].set_text(expression)
-            return expression
-
-        def insert():
-            expression = build()
-            self.insert_function(expression)
-            return expression
-
-        self._button(page, layout, "piecewise.build", "Build Piecewise", build)
-        self._button(page, layout, "piecewise.insert", "Insert Into Calculator", insert)
-
-    def build_piecewise_for_test(self, pieces: list[tuple[str, str]]) -> str:
-        expression = build_piecewise_expression(pieces)
-        self.math_fields["piecewise.result"].set_text(expression)
-        self.insert_function(expression)
-        return expression
-
-
-__all__ = ["FieldSpec", "MathToolsDialog", "UncappedLineEdit"]
+__all__ = ["FieldSpec", "MathToolsDialog"]

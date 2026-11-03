@@ -3,10 +3,14 @@
 A desktop integral calculator with exact (symbolic) answers, reliable numerical
 integration, interactive graphs, and step-by-step explanations.
 
-**v6.0 — One calculator screen.** Definite, indefinite, and improper integrals
-share one screen that gives the exact answer when one exists and a number
-otherwise. Math Tools is a single list of ten tools, and the interface is
-available in English and Simplified Chinese.
+**v6.0 Integrated Edition — One calculator screen.** Definite, indefinite, and
+improper integrals share one screen that gives the exact answer when one exists
+and a number otherwise. Math Tools is a short list of four tools, and the
+interface is available in English and Simplified Chinese.
+
+The previous generation, **v5.1 Detailed Edition**, keeps every advanced option,
+the signal-analysis workspace, and nine languages; it is available from
+[Releases](https://github.com/lpts1011/Integral-Calculator/releases/tag/v5.1).
 
 ## Highlights
 
@@ -20,9 +24,8 @@ available in English and Simplified Chinese.
   a clearly labeled error estimate.
 - Structural narrow-peak detection, bounded periodic singularity search,
   integrable endpoint singularities, and protection against Romberg aliasing.
-- Math Tools: area and average value, polar area, arc length and volume, multiple
-  integrals, Taylor series, Fourier/Laplace/ODE, integration techniques,
-  antiderivative checks, a parameter slider, and a piecewise builder.
+- Math Tools: area, polar area, arc length and volume, and integration techniques
+  (substitution and integration by parts).
 - Fully offline MathLive editor and math keyboard, adaptive graphs, history, and
   symbolic steps, in English or Simplified Chinese.
 

@@ -1,22 +1,12 @@
 import unittest
 
 from math_extensions import (
-    build_piecewise_expression,
     compute_arc_length,
     compute_area_breakdown,
-    compute_average_value,
-    compute_fourier_series,
-    compute_laplace_transform,
     compute_polar_area,
-    compute_polar_double_integral,
     compute_revolution_volume,
-    compute_taylor_expansion,
-    compute_triple_integral,
-    compute_variable_double_integral,
     convergence_report,
     integration_by_parts_helper,
-    parameter_assignment,
-    solve_simple_ode,
     substitution_integral_helper,
     verify_antiderivative,
 )
@@ -30,32 +20,17 @@ class InteractiveMathToolsTests(unittest.TestCase):
         self.assertEqual(result["exact"], "π")
         self.assertAlmostEqual(result["numeric"], 3.141592653589793, places=10)
 
-    def test_taylor_expansion_for_sine(self):
-        result = compute_taylor_expansion("sin(x)", "0", "3")
-
-        self.assertIn("x^3/6", result["polynomial"])
-
-    def test_piecewise_builder_outputs_solving_piecewise(self):
-        expression = build_piecewise_expression([("x", "x < 0"), ("x^2", "True")])
-
-        self.assertEqual(expression, "Piecewise((x, x < 0), (x^2, True))")
-
-    def test_parameter_assignment_for_slider(self):
-        self.assertEqual(parameter_assignment("a", 2.5), "a=2.5")
-
     def test_antiderivative_verification(self):
         verification = verify_antiderivative("sin(x)", "-cos(x)")
 
         self.assertTrue(verification["ok"])
         self.assertEqual(verification["difference"], "0")
 
-    def test_average_area_substitution_and_parts_helpers(self):
-        average = compute_average_value("x", "0", "2")
+    def test_area_substitution_and_parts_helpers(self):
         area = compute_area_breakdown("x", "-1", "1")
         substitution = substitution_integral_helper("2*x*cos(x^2)", "u=x^2")
         by_parts = integration_by_parts_helper("x", "exp(x)")
 
-        self.assertEqual(average["average"], "1")
         self.assertAlmostEqual(area["absolute"], 1.0, places=10)
         self.assertEqual(substitution["transformed_integrand"], "cos(u)")
         self.assertIn("(x - 1)*e^(x)", by_parts["result"])
@@ -67,35 +42,11 @@ class InteractiveMathToolsTests(unittest.TestCase):
         self.assertEqual(arc["exact"], "sqrt(2)")
         self.assertEqual(volume["exact"], "π/3")
 
-    def test_fourier_laplace_and_ode_tools(self):
-        fourier = compute_fourier_series("x", "2*pi", "3")
-        laplace = compute_laplace_transform("exp(-x)")
-        ode = solve_simple_ode("y' = x*y")
-
-        self.assertIn("sin(x)", fourier["series"])
-        self.assertEqual(laplace["transform"], "1/(s + 1)")
-        self.assertIn("e^(x^2/2)", ode["solution"])
-
     def test_convergence_report_handles_improper_integral(self):
         report = convergence_report("exp(-x)", "0", "inf", timeout=0)
 
         self.assertEqual(report["status"], "convergent")
         self.assertIn("Exact value", report["summary"])
-
-    def test_double_integral_over_unit_square(self):
-        result = compute_variable_double_integral("x + y", "0", "1", "0", "1")
-
-        self.assertEqual(result["exact"], "1")
-        self.assertAlmostEqual(result["numeric"], 1.0, places=10)
-
-    def test_multiple_integral_expansions(self):
-        variable_double = compute_variable_double_integral("1", "0", "1", "0", "x")
-        polar_double = compute_polar_double_integral("1", "0", "1", "0", "2*pi")
-        triple = compute_triple_integral("1", "0", "1", "0", "1", "0", "1")
-
-        self.assertEqual(variable_double["exact"], "1/2")
-        self.assertEqual(polar_double["exact"], "π")
-        self.assertEqual(triple["exact"], "1")
 
     def test_steps_for_definite_record_are_click_generated(self):
         steps = build_steps_for_record({
