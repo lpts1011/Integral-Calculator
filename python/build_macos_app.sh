@@ -127,7 +127,16 @@ if command -v codesign >/dev/null 2>&1; then
     SIGNING_APP="$SIGNING_DIR/Integral_Calculator_Python.app"
     ditto --norsrc "$APP_PATH" "$SIGNING_APP"
     if command -v xattr >/dev/null 2>&1; then
+        # Recent macOS adds a protected provenance attribute; clearing
+        # attributes inside the read-only Versions directory needs write access.
+        SIGNING_WEBENGINE_VERSIONS="$SIGNING_APP/Contents/Frameworks/PySide6/Qt/lib/QtWebEngineCore.framework/Versions"
+        if [[ -d "$SIGNING_WEBENGINE_VERSIONS" ]]; then
+            chmod u+w "$SIGNING_WEBENGINE_VERSIONS"
+        fi
         xattr -cr "$SIGNING_APP"
+        if [[ -d "$SIGNING_WEBENGINE_VERSIONS" ]]; then
+            chmod 0555 "$SIGNING_WEBENGINE_VERSIONS"
+        fi
     fi
     if [[ "$MACOS_SIGNING_IDENTITY" == "-" ]]; then
         codesign --force --deep --sign - "$SIGNING_APP"
