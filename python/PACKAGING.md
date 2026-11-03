@@ -91,7 +91,7 @@ xcrun notarytool store-credentials "integral-calculator-notary" \
 Then create a formal release:
 
 ```bash
-APP_VERSION=5.0.1 \
+APP_VERSION=5.1 \
 DEVELOPER_ID_APPLICATION="Developer ID Application: YOUR NAME (TEAM_ID)" \
 NOTARY_PROFILE="integral-calculator-notary" \
 ./build_macos_release.sh

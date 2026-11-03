@@ -3,8 +3,8 @@
 A desktop integral calculator with symbolic calculus, numerical error control,
 interactive plots, and integration-based signal analysis.
 
-**v5.0.0 — Signals & Reliable Integration** upgrades the Python edition.
-v5.0.1 makes integration and plotting faster and removes the C++ edition and the
+**v5.0 — Signals & Reliable Integration** upgrades the Python edition.
+v5.1 makes integration and plotting faster and removes the C++ edition and the
 standalone launcher.
 
 ## Highlights

@@ -1,8 +1,9 @@
 # Changelog
 
-All notable project changes are recorded here. Versions follow Semantic Versioning.
+All notable project changes are recorded here. Versions use two-part `MAJOR.MINOR`
+numbers, and release tags are named `vMAJOR.MINOR`.
 
-## [5.0.1] - 2026-11-03
+## [5.1] - 2026-11-03
 
 ### Changed
 
@@ -15,6 +16,9 @@ All notable project changes are recorded here. Versions follow Semantic Versioni
   per-region interpolation, and fixed legend placement for dense plots. Plots of
   high-frequency functions render about 5× faster; ordinary plots are unchanged.
 
+- Version numbers, Git tags, release titles, and download file names now use
+  two-part names (`v5.0`, `v4.1`, `v3.1-beta`, …).
+
 ### Removed
 
 - The C++ edition (`cpp/`) and its CI job; the project is now Python-only.
@@ -24,7 +28,7 @@ All notable project changes are recorded here. Versions follow Semantic Versioni
   `monte_carlo_stratified`), an unused plotting helper, a duplicate plot-theme
   function, an obsolete symbolic worker, unused attributes, and unused imports.
 
-## [5.0.0] - 2026-10-08
+## [5.0] - 2026-10-08
 
 ### Added
 
@@ -55,10 +59,10 @@ All notable project changes are recorded here. Versions follow Semantic Versioni
   functions, quadrature nodes, parsed parameter expressions, and symbolic work.
 - Synchronized existing offline MathLive/Qt interface and packaging improvements;
   removed retired Tkinter production modules.
-- Rebuilt Python macOS app and standalone bundle as v5.0.0. C++ algorithms remain
+- Rebuilt Python macOS app and standalone bundle as v5.0. C++ algorithms remain
   unchanged; new Python features are documented as not yet ported.
 
-## [4.0.0] - 2026-07-13
+## [4.0] - 2026-07-13
 
 ### Added
 

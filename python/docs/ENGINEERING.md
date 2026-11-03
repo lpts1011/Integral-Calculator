@@ -1,4 +1,4 @@
-# Signals & Reliable Integration — v5.0.0
+# Signals & Reliable Integration — v5.0
 
 This edition keeps integration at the center of the project. The engineering
 connection is the accumulation and transformation of information: measured
