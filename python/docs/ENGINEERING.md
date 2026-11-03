@@ -88,5 +88,3 @@ wall-clock times and relative performance depend on hardware and input.
 
 The Python changes also include the offline MathLive editor, Qt interface, and
 packaging work that had not previously been synchronized to the repository.
-The C++ edition remains at its existing feature scope; see `cpp/PARITY.md` for
-features that have not been ported from Python v5.

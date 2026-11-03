@@ -17,6 +17,9 @@ All notable project changes are recorded here. Versions follow Semantic Versioni
 
 ### Removed
 
+- The C++ edition (`cpp/`) and its CI job; the project is now Python-only.
+- The standalone single-file launcher generator (`build_standalone.py`) and its
+  payload-parity test.
 - Unused numerical helpers (`composite_simpson_38`, `romberg_custom`,
   `monte_carlo_stratified`), an unused plotting helper, a duplicate plot-theme
   function, an obsolete symbolic worker, unused attributes, and unused imports.

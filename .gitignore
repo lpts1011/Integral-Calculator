@@ -18,13 +18,6 @@ dist/
 *.exe
 *.msi
 
-# CMake outputs
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-CTestTestfile.cmake
-Makefile
-
 # Local state
 *.tmp
 *.bak

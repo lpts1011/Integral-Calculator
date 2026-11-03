@@ -57,34 +57,6 @@ The local launcher is a symbolic link to the complete signed app in
 `~/Applications`. Set `INTEGRAL_CALCULATOR_APP_PATH` before building to choose a
 different stable installation path.
 
-## Standalone Python File
-
-Regenerate the single-file source launcher after changing the normal Python
-edition:
-
-```bash
-python3 build_standalone.py
-```
-
-The generated file is `../Integral_Calculator_Standalone.py`. It embeds the
-complete current `Main` source tree, the local calculation libraries, the
-offline MathLive resources, and the signed arm64 macOS application runtime.
-Generated build folders, caches, and bytecode are excluded.
-
-Verify the embedded source without opening the interface:
-
-```bash
-python3 ../Integral_Calculator_Standalone.py --self-test
-python3 build_standalone.py --check
-```
-
-On an Apple-silicon Mac, the standalone file needs only a working Python 3
-command. If that Python does not provide PySide6 or Matplotlib, the launcher
-automatically extracts its own signed application runtime. The first launch is
-slower while the runtime is prepared; later launches reuse a verified cache.
-On other operating systems or Intel Macs, the source fallback still requires a
-compatible Python environment with PySide6 and Matplotlib.
-
 If PyInstaller is missing, install it first:
 
 ```bash
