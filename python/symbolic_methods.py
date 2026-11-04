@@ -1,3 +1,4 @@
+import math
 import multiprocessing
 import warnings
 from functools import lru_cache
@@ -10,7 +11,6 @@ from formatting import format_result_for_display, pretty_math_str, tidy_result
 from numeric_methods import (
     build_numeric_callable,
     numeric_integrate_with_error,
-    numeric_scalar,
     validate_numeric_integrand,
 )
 from parser_utils import (
@@ -74,15 +74,7 @@ def _compute_tab1_result_direct(func_str, lower_text, upper_text):
         display_str = info["display"]
 
         if info["type"] == "unevaluated":
-            l_float = float(lower.evalf())
-            u_float = float(upper.evalf())
-            f_num = build_numeric_callable(expr)
-            validate_numeric_integrand(expr, f_num, l_float, u_float)
-            numeric_value, numeric_err = numeric_integrate_with_error(
-                lambda t: numeric_scalar(f_num, t),
-                l_float,
-                u_float
-            )
+            numeric_value, numeric_err = numerical_fallback(func_str, lower_text, upper_text)
             display_str = f"≈ {numeric_value:.10g}"
 
         if numeric_value is None:
@@ -166,20 +158,37 @@ def compute_general_integral(func_str, lower_text, upper_text, timeout=SYMBOLIC_
     ))
 
 
-def numerical_fallback(func_str, lower_text, upper_text):
+NOT_CONVERGED_MESSAGE = (
+    "No exact value was found and the numerical value did not converge; "
+    "the integral may diverge."
+)
+
+
+def numerical_fallback(func_str, lower_text, upper_text, *, cancel=None):
     """Value and error estimate when no exact form is found, or not found in time."""
     from scipy.integrate import IntegrationWarning
+
+    from integration_engine import EvaluationBudget, NumericalConvergenceError, NumericalOptions
 
     expr = evaluate_symbolic_function(func_str)
     lower, upper = parse_input_to_float(lower_text), parse_input_to_float(upper_text)
     f_num = build_numeric_callable(expr)
-    validate_numeric_integrand(expr, f_num, lower, upper)
+    if math.isfinite(lower) and math.isfinite(upper):
+        from tab2_logic import compute_segmented_numerical_integral
+        try:
+            value, error, _segments = compute_segmented_numerical_integral(
+                expr, "Auto", f_num, lower, upper, options={"cancel": cancel},
+            )
+        except NumericalConvergenceError as exc:
+            raise ValueError(NOT_CONVERGED_MESSAGE) from exc
+        return value, error
+
+    budget = EvaluationBudget(f_num, NumericalOptions(cancel=cancel))
+    budget.check()
+    validate_numeric_integrand(expr, f_num, lower, upper, allow_endpoint_singularities=True)
     with warnings.catch_warnings():
         warnings.simplefilter("error", IntegrationWarning)
         try:
-            return numeric_integrate_with_error(lambda t: numeric_scalar(f_num, t), lower, upper)
+            return numeric_integrate_with_error(budget.scalar, lower, upper)
         except IntegrationWarning as exc:
-            raise ValueError(
-                "No exact value was found and the numerical value did not converge; "
-                "the integral may diverge."
-            ) from exc
+            raise ValueError(NOT_CONVERGED_MESSAGE) from exc

@@ -3,7 +3,7 @@ from solving.core.function import diff
 from solving.core.numbers import Rational, pi
 from solving.core.relational import Eq
 from solving.core.symbol import symbols
-from solving.functions import sqrt
+from solving.functions import Abs, sqrt
 from solving.integrals.integrals import Integral, integrate
 from solving.parsing.solving_parser import parse_expr
 from solving.printing.latex import latex
@@ -12,11 +12,7 @@ from solving.solvers.solvers import solve
 from solving.utilities.lambdify import lambdify
 
 from formatting import is_complicated, pretty_math_str
-from numeric_methods import (
-    build_numeric_callable,
-    numeric_scalar,
-    validate_numeric_integrand,
-)
+from numeric_methods import build_numeric_callable
 from parser_utils import (
     PARSER_TRANSFORMATIONS,
     SAFE_GLOBALS,
@@ -26,6 +22,7 @@ from parser_utils import (
     x_sym,
 )
 from symbolic_methods import compute_general_integral
+from tab2_logic import compute_segmented_numerical_integral
 
 
 theta_sym = symbols("theta")
@@ -64,10 +61,15 @@ def _closed_form(exact):
     return simplify(exact)
 
 
+def _geometric_bounds(lower_text, upper_text):
+    """Geometric measures do not change sign when limits are reversed."""
+    bounds = (parse_input_to_solving(lower_text), parse_input_to_solving(upper_text))
+    return tuple(sorted(bounds, key=lambda value: float(value.evalf())))
+
+
 def compute_polar_area(radius_expr, lower_text, upper_text):
     radius = _parse_with_symbols(radius_expr, {"theta": theta_sym, "t": theta_sym})
-    lower = parse_input_to_solving(lower_text)
-    upper = parse_input_to_solving(upper_text)
+    lower, upper = _geometric_bounds(lower_text, upper_text)
     area_expr = Rational(1, 2) * radius**2
     exact = integrate(area_expr, (theta_sym, lower, upper))
     numeric = float(exact.evalf())
@@ -141,12 +143,20 @@ def compute_area_breakdown(func_str, lower_text, upper_text):
     expr = evaluate_symbolic_function(func_str)
     lower = float(parse_input_to_solving(lower_text).evalf())
     upper = float(parse_input_to_solving(upper_text).evalf())
-    f_num = build_numeric_callable(expr)
-    validate_numeric_integrand(expr, f_num, lower, upper)
-    signed, signed_error = quad(lambda t: numeric_scalar(f_num, t), lower, upper)
-    absolute, absolute_error = quad(lambda t: abs(numeric_scalar(f_num, t)), lower, upper)
-    positive = (absolute+signed)/2
-    negative_signed = (signed-absolute)/2
+    lo, hi = sorted((lower, upper))
+    signed_forward, signed_error, _ = compute_segmented_numerical_integral(
+        expr, "Auto", build_numeric_callable(expr), lo, hi,
+    )
+    # Keep the original structure: rewriting Abs(exp(...)) with complex-symbol
+    # assumptions hides the quadratic peak from structural breakpoint detection.
+    absolute_expr = Abs(expr, evaluate=False)
+    absolute, absolute_error, _ = compute_segmented_numerical_integral(
+        absolute_expr, "Auto", build_numeric_callable(absolute_expr), lo, hi,
+    )
+    positive = max(0.0, (absolute+signed_forward)/2)
+    negative_signed = min(0.0, (signed_forward-absolute)/2)
+    # Adding 0.0 turns -0.0 into 0.0, so reversed limits never show "-0".
+    signed = (signed_forward if lower <= upper else -signed_forward) + 0.0
     return {
         "signed": signed,
         "absolute": absolute,
@@ -160,8 +170,7 @@ def compute_area_breakdown(func_str, lower_text, upper_text):
 
 def compute_arc_length(func_str, lower_text, upper_text):
     expr = evaluate_symbolic_function(func_str)
-    lower = parse_input_to_solving(lower_text)
-    upper = parse_input_to_solving(upper_text)
+    lower, upper = _geometric_bounds(lower_text, upper_text)
     integrand = sqrt(1 + diff(expr, x_sym) ** 2)
     exact = integrate(integrand, (x_sym, lower, upper))
     closed = _closed_form(exact)
@@ -182,8 +191,7 @@ def compute_arc_length(func_str, lower_text, upper_text):
 
 def compute_revolution_volume(func_str, lower_text, upper_text, axis="x"):
     expr = evaluate_symbolic_function(func_str)
-    lower = parse_input_to_solving(lower_text)
-    upper = parse_input_to_solving(upper_text)
+    lower, upper = _geometric_bounds(lower_text, upper_text)
     axis = axis.strip().lower()
     if axis == "x":
         integrand = pi * expr**2

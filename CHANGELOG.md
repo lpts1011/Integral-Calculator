@@ -28,6 +28,14 @@ one generation: 2.0–2.6 became 1.1–1.7, 2.7–2.9 became 2.0–2.2, 3.1-beta
 
 ### Fixed
 
+- Numerical fallback and Math Tools area calculations now use the checked finite
+  numerical engine, retaining narrow-peak detection, piecewise splits and support
+  for integrable endpoint singularities.
+- Numerical fallback observes cancellation; improper fallback also has evaluation
+  and time budgets. A divergent endpoint such as ∫₀¹ 1/x dx now gives the same
+  plain "the integral may diverge" message as a divergent infinite limit.
+- Reversing limits preserves geometric areas, arc lengths and disk volumes, while
+  the signed integral still changes sign (and a zero result shows 0, not -0).
 - Arc length without a closed form said "no closed form" in English in every
   language; it now explains in the chosen language that the numerical value is
   shown below.

@@ -219,6 +219,18 @@ class IntegralTabTests(unittest.TestCase):
         self.assertEqual(self.records[-1]["params"], "a=2")
         self.assertTrue(self.records[-1]["display"].endswith("= 1"))
 
+    def test_timeout_fallback_receives_the_cancel_event(self):
+        from symbolic_methods import SymbolicTimeoutError
+
+        for upper, symbolic in (("1", "compute_tab1_result"), ("inf", "compute_general_integral")):
+            with self.subTest(upper=upper):
+                self.fill("exp(-x)", "0", upper)
+                with patch(f"qt_integral_tab.{symbolic}", side_effect=SymbolicTimeoutError("slow")), patch(
+                    "qt_integral_tab.numerical_fallback", return_value=(1.0, 0.0)
+                ) as fallback:
+                    self.tab.calculate()
+                fallback.assert_called_once_with("exp(-x)", "0", upper, cancel=self.tab.cancel_event)
+
     def test_chosen_numerical_method_records_diagnostics(self):
         self.fill("sin(x)", "0", "pi")
         self.tab.set_method("Adaptive Simpson")

@@ -260,7 +260,7 @@ class IntegralTab(QWidget):
         except SymbolicTimeoutError:
             if not has_complete_limits(lower, upper):
                 raise
-        value, error = numerical_fallback(func, lower, upper)
+        value, error = numerical_fallback(func, lower, upper, cancel=self.cancel_event)
         return {
             "kind": "definite",
             "lower_text": lower,
@@ -279,7 +279,7 @@ class IntegralTab(QWidget):
         except SymbolicTimeoutError:
             out = {"type": "unevaluated", "expr": None}
         if out["type"] == "unevaluated":
-            out["numeric"] = numerical_fallback(func, lower, upper)
+            out["numeric"] = numerical_fallback(func, lower, upper, cancel=self.cancel_event)
         return out
 
     def compare_methods(self) -> None:

@@ -1,4 +1,5 @@
 import unittest
+import math
 
 from math_extensions import (
     compute_arc_length,
@@ -14,6 +15,31 @@ from step_explainer import STEPS_UNAVAILABLE_MESSAGE, build_steps_for_record
 
 
 class InteractiveMathToolsTests(unittest.TestCase):
+    def test_reversed_limits_preserve_geometric_measures(self):
+        for function in ("x", "x+2", "x-2"):
+            with self.subTest(function=function):
+                forward = compute_area_breakdown(function, "-1", "1")
+                reverse = compute_area_breakdown(function, "1", "-1")
+                self.assertAlmostEqual(reverse["signed"], -forward["signed"])
+                for key in ("absolute", "positive_area", "negative_area", "negative_signed"):
+                    self.assertAlmostEqual(reverse[key], forward[key])
+        # A zero signed integral must not come back as -0.0 and show "-0".
+        self.assertEqual(math.copysign(1, compute_area_breakdown("x", "1", "-1")["signed"]), 1)
+        self.assertAlmostEqual(compute_arc_length("x", "1", "0")["numeric"], math.sqrt(2))
+        self.assertAlmostEqual(compute_polar_area("1", "2*pi", "0")["numeric"], math.pi)
+        self.assertAlmostEqual(compute_revolution_volume("x", "1", "0")["numeric"], math.pi/3)
+
+    def test_area_resolves_narrow_peaks(self):
+        area = compute_area_breakdown("exp(-1000000*(x-0.12345)^2)", "0", "1")
+        expected = math.sqrt(math.pi)/1000
+        self.assertAlmostEqual(area["signed"], expected, places=11)
+        self.assertAlmostEqual(area["absolute"], expected, places=11)
+
+    def test_area_handles_integrable_endpoints_and_rejects_poles(self):
+        self.assertAlmostEqual(compute_area_breakdown("1/sqrt(x)", "0", "1")["absolute"], 2.0)
+        with self.assertRaises(ValueError):
+            compute_area_breakdown("1/x", "-1", "1")
+
     def test_polar_area_template_computes_circle_area(self):
         result = compute_polar_area("2*cos(theta)", "-pi/2", "pi/2")
 
