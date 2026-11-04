@@ -13,7 +13,6 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
     QListWidget,
-    QPlainTextEdit,
     QPushButton,
     QScrollArea,
     QStackedWidget,
@@ -32,6 +31,7 @@ from math_extensions import (
 )
 from qt_dialogs import show_error_dialog
 from qt_jobs import JobRunner
+from qt_result_workspace import ToolResultView
 
 
 @dataclass(frozen=True)
@@ -42,6 +42,10 @@ class FieldSpec:
     label: str
     role: FieldRole
     default: str = ""
+
+
+def _number(value: float) -> str:
+    return rf"\approx {value:.10g}"
 
 
 class MathToolsDialog(QDialog):
@@ -55,6 +59,7 @@ class MathToolsDialog(QDialog):
         text: dict[str, object] | None = None,
         theme_name: str = "Light",
         panel_factory=MathEditorPanel,
+        result_view_factory=ToolResultView,
     ) -> None:
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
@@ -65,7 +70,8 @@ class MathToolsDialog(QDialog):
         self.math_fields: dict[str, object] = {}
         self.math_panels: dict[str, QWidget] = {}
         self.pages: dict[str, QWidget] = {}
-        self.results: dict[str, QPlainTextEdit] = {}
+        self.results: dict[str, list[dict[str, str]]] = {}
+        self._page_keys: list[str] = []
         self.actions: dict[str, QPushButton] = {}
         self.native_controls: dict[str, QWidget] = {}
 
@@ -83,10 +89,15 @@ class MathToolsDialog(QDialog):
         self.tool_list.setFixedWidth(210)
         self.tool_list.setSpacing(3)
         self.stack = QStackedWidget(self)
-        self.tool_list.currentRowChanged.connect(self.stack.setCurrentIndex)
+        self.result_view = result_view_factory(self)
+        self.result_view.set_theme(self.theme_name)
+        self.tool_list.currentRowChanged.connect(self._show_page)
+        tool_area = QVBoxLayout()
+        tool_area.addWidget(self.stack, stretch=3)
+        tool_area.addWidget(self.result_view, stretch=2)
         body = QHBoxLayout()
         body.addWidget(self.tool_list)
-        body.addWidget(self.stack, stretch=1)
+        body.addLayout(tool_area, stretch=1)
         layout = QVBoxLayout(self)
         layout.addLayout(body)
         layout.addWidget(self.cancel_button)
@@ -135,13 +146,9 @@ class MathToolsDialog(QDialog):
                     panel.setMinimumHeight(max(minimum, int(height) + 4))
             )
         page_layout.addWidget(panel)
-        output = QPlainTextEdit(page)
-        output.setReadOnly(True)
-        output.setObjectName(f"{panel_key}Result")
-        output.setMinimumHeight(115)
-        self.results[panel_key] = output
-        page_layout.addWidget(output, stretch=1)
         page_layout.addStretch(1)
+        self.results[panel_key] = []
+        self._page_keys.append(panel_key)
 
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
@@ -154,8 +161,39 @@ class MathToolsDialog(QDialog):
     def _field(self, name: str) -> str:
         return self.math_fields[name].get_text().strip()
 
-    def _set_result(self, page: str, lines) -> None:
-        self.results[page].setPlainText("\n".join(lines))
+    def _show_page(self, index: int) -> None:
+        self.stack.setCurrentIndex(index)
+        if 0 <= index < len(self._page_keys):
+            self.result_view.set_rows(self.results[self._page_keys[index]])
+
+    def _set_result(self, page: str, rows) -> None:
+        self.results[page] = list(rows)
+        if self._page_keys[self.stack.currentIndex()] == page:
+            self.result_view.set_rows(self.results[page])
+
+    def result_text(self, page: str) -> str:
+        """The page's latest result as plain text, one row per line."""
+        lines = []
+        for row in self.results[page]:
+            if "heading" in row:
+                lines.append(row["heading"])
+            else:
+                lines.append(f"{row.get('label', '')} {row.get('text', '')}".strip())
+        return "\n".join(lines)
+
+    @staticmethod
+    def _math(label: str, latex: str, text: str) -> dict[str, str]:
+        return {"label": label, "latex": latex, "text": text}
+
+    def _exact_row(self, label: str, result: dict) -> dict[str, str]:
+        latex = result["latex"]["exact"]
+        if latex:
+            return self._math(label, latex, result["exact"])
+        if result["exact"] is None:
+            note = "No closed form; the numerical value is shown below."
+        else:
+            note = "The exact form is too complex; the numerical value is shown below."
+        return {"label": label, "text": self._tr(note)}
 
     def _button(
         self,
@@ -206,9 +244,7 @@ class MathToolsDialog(QDialog):
 
     @staticmethod
     def _control_insertion_index(layout: QVBoxLayout) -> int:
-        for index in range(layout.count()):
-            if isinstance(layout.itemAt(index).widget(), QPlainTextEdit):
-                return index
+        # Controls go after the editor and earlier controls, before the stretch.
         return max(0, layout.count() - 1)
 
     def _build_area(self) -> None:
@@ -228,12 +264,15 @@ class MathToolsDialog(QDialog):
             arguments = (self._field("area.function"), self._field("area.lower"), self._field("area.upper"))
 
             def present(area):
-                self._set_result("area", (
-                    f"{tr('Signed integral:')} {area['signed']:.12g}",
-                    f"{tr('Absolute area:')} {area['absolute']:.12g}",
-                    f"{tr('Positive area:')} {area['positive_area']:.12g}",
-                    f"{tr('Negative area:')} {area['negative_area']:.12g}",
-                ))
+                self._set_result("area", [
+                    self._math(label, f"{area[key]:.12g}", f"{area[key]:.12g}")
+                    for label, key in (
+                        (tr("Signed integral:"), "signed"),
+                        (tr("Absolute area:"), "absolute"),
+                        (tr("Positive area:"), "positive_area"),
+                        (tr("Negative area:"), "negative_area"),
+                    )
+                ])
                 return area
             return self._submit_job(compute_area_breakdown, arguments, present)
 
@@ -252,10 +291,14 @@ class MathToolsDialog(QDialog):
 
             def present(result):
                 self._set_result("polar_area", (
-                    tr("Polar area formula: A = 1/2 ∫ r(θ)² dθ"),
-                    f"{tr('Integrand:')} {result['integrand']}",
-                    f"{tr('Exact area:')} {result['exact']}",
-                    f"{tr('Numeric area:')} {result['numeric']:.10g}",
+                    self._math(
+                        tr("Polar area formula:"),
+                        r"A=\frac{1}{2}\int r(\theta)^{2}\,d\theta",
+                        "A = 1/2 ∫ r(θ)² dθ",
+                    ),
+                    self._math(tr("Integrand:"), result["latex"]["integrand"], result["integrand"]),
+                    self._exact_row(tr("Exact area:"), result),
+                    self._math(tr("Numeric area:"), _number(result["numeric"]), f"{result['numeric']:.10g}"),
                 ))
                 return result
             return self._submit_job(compute_polar_area, arguments, present)
@@ -289,17 +332,15 @@ class MathToolsDialog(QDialog):
 
             def present(payload):
                 arc, volume = payload
-                self._set_result("arc_length_volume", (
-                    tr("Arc length"),
-                    f"{tr('Integrand:')} {arc['integrand']}",
-                    f"{tr('Exact:')} {arc['exact']}",
-                    f"{tr('Numeric:')} {arc['numeric']:.10g}",
-                    "",
-                    tr("Volume of revolution"),
-                    f"{tr('Integrand:')} {volume['integrand']}",
-                    f"{tr('Exact:')} {volume['exact']}",
-                    f"{tr('Numeric:')} {volume['numeric']:.10g}",
-                ))
+                rows = []
+                for heading, result in ((tr("Arc length"), arc), (tr("Volume of revolution"), volume)):
+                    rows += [
+                        {"heading": heading},
+                        self._math(tr("Integrand:"), result["latex"]["integrand"], result["integrand"]),
+                        self._exact_row(tr("Exact:"), result),
+                        self._math(tr("Numeric:"), _number(result["numeric"]), f"{result['numeric']:.10g}"),
+                    ]
+                self._set_result("arc_length_volume", rows)
                 return arc, volume
             return self._submit_job(compute_geometry_bundle, arguments, present)
 
@@ -318,12 +359,17 @@ class MathToolsDialog(QDialog):
             arguments = (self._field("techniques.function"), self._field("techniques.substitution"))
 
             def present(result):
+                tex = result["latex"]
                 self._set_result("integration_techniques", (
-                    tr("Substitution"),
-                    f"u = {result['u']}",
-                    f"du/dx = {result['du_dx']}",
-                    f"x(u) = {result['x_of_u']}",
-                    f"{tr('Transformed integrand:')} {result['transformed_integrand']}",
+                    {"heading": tr("Substitution")},
+                    self._math("", f"u = {tex['u']}", f"u = {result['u']}"),
+                    self._math("", rf"\frac{{du}}{{dx}} = {tex['du_dx']}", f"du/dx = {result['du_dx']}"),
+                    self._math("", f"x(u) = {tex['x_of_u']}", f"x(u) = {result['x_of_u']}"),
+                    self._math(
+                        tr("Transformed integrand:"),
+                        tex["transformed_integrand"],
+                        result["transformed_integrand"],
+                    ),
                 ))
                 return result
             return self._submit_job(substitution_integral_helper, arguments, present)
@@ -332,14 +378,20 @@ class MathToolsDialog(QDialog):
             arguments = (self._field("techniques.u"), self._field("techniques.dv"))
 
             def present(result):
+                tex = result["latex"]
+                du = "" if tex["du"] == "1" else tex["du"] + r"\,"
                 self._set_result("integration_techniques", (
-                    tr("Integration by parts"),
-                    f"u = {result['u']}",
-                    f"du = {result['du']} dx",
-                    f"dv = {result['dv']} dx",
-                    f"v = {result['v']}",
-                    f"{tr('Remaining integrand v·du:')} {result['remaining_integrand']}",
-                    f"{tr('Result:')} {result['result']} + C",
+                    {"heading": tr("Integration by parts")},
+                    self._math("", f"u = {tex['u']}", f"u = {result['u']}"),
+                    self._math("", rf"du = {du}dx", f"du = {result['du']} dx"),
+                    self._math("", rf"dv = {tex['dv']}\,dx", f"dv = {result['dv']} dx"),
+                    self._math("", f"v = {tex['v']}", f"v = {result['v']}"),
+                    self._math(
+                        tr("Remaining integrand v·du:"),
+                        tex["remaining_integrand"],
+                        result["remaining_integrand"],
+                    ),
+                    self._math(tr("Result:"), f"{tex['result']} + C", f"{result['result']} + C"),
                 ))
                 return result
             return self._submit_job(integration_by_parts_helper, arguments, present)

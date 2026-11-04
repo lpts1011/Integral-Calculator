@@ -55,6 +55,19 @@ class FakeMathEditorPanel(QWidget):
         self.operations.append(("command", field_id, command))
 
 
+class FakeResultView(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.rows = []
+        self.theme = None
+
+    def set_rows(self, rows):
+        self.rows = list(rows)
+
+    def set_theme(self, name):
+        self.theme = name
+
+
 class _MissingRecorder(dict):
     """A translation table that remembers phrases it could not translate."""
 
@@ -79,7 +92,9 @@ class QtMathToolsTests(unittest.TestCase):
         self.dialog._submit_job = lambda function, arguments, present: present(function(*arguments))
 
     def make_dialog(self, **options):
-        dialog = MathToolsDialog(panel_factory=FakeMathEditorPanel, **options)
+        dialog = MathToolsDialog(
+            panel_factory=FakeMathEditorPanel, result_view_factory=FakeResultView, **options
+        )
         self.addCleanup(dialog.deleteLater)
         return dialog
 
@@ -107,7 +122,7 @@ class QtMathToolsTests(unittest.TestCase):
                 self.assertIsInstance(field, MathFieldAdapter)
 
     def test_close_deletes_dialog_and_all_math_panels(self):
-        dialog = MathToolsDialog(panel_factory=FakeMathEditorPanel)
+        dialog = MathToolsDialog(panel_factory=FakeMathEditorPanel, result_view_factory=FakeResultView)
         destroyed_dialogs = []
         destroyed_panels = []
         dialog.destroyed.connect(lambda *_args: destroyed_dialogs.append(True))
@@ -160,6 +175,9 @@ class QtMathToolsTests(unittest.TestCase):
         self.assertGreater(len(phrases), 15)
         table = ui_text("中文（简体）")["tool_text"]
         self.assertEqual({phrase for _quote, phrase in phrases} - set(table), set())
+        notes = set(re.findall(r'note = "(.+?)"', source))
+        self.assertEqual(len(notes), 2)
+        self.assertEqual(notes - set(table), set())
 
     def test_dark_theme_is_applied_to_every_math_panel(self):
         dialog = self.make_dialog(theme_name="Dark")
@@ -167,6 +185,7 @@ class QtMathToolsTests(unittest.TestCase):
         for name, panel in dialog.math_panels.items():
             with self.subTest(panel=name):
                 self.assertIn(("theme", "Dark"), panel.operations)
+        self.assertEqual(dialog.result_view.theme, "Dark")
 
     def test_cancel_button_only_appears_while_a_job_runs(self):
         self.assertTrue(self.dialog.cancel_button.isHidden())
@@ -177,17 +196,52 @@ class QtMathToolsTests(unittest.TestCase):
         self.assertTrue(self.dialog.cancel_button.isHidden())
 
     def test_actions_route_to_helpers_and_format_results(self):
-        polar_result = {"integrand": "2*cos(theta)^2", "exact": "pi", "numeric": 3.0}
+        polar_result = {
+            "integrand": "2*cos(theta)^2",
+            "exact": "pi",
+            "numeric": 3.0,
+            "latex": {"integrand": r"2 \cos^{2}{\left(\theta \right)}", "exact": r"\pi"},
+        }
+        self.dialog.tool_list.setCurrentRow(1)
         with patch("qt_math_tools.compute_polar_area", return_value=polar_result) as helper:
             self.dialog.actions["polar.compute"].click()
         helper.assert_called_once_with("2*cos(theta)", "-pi/2", "pi/2")
-        self.assertIn("Exact area: pi", self.dialog.results["polar_area"].toPlainText())
+        self.assertIn("Exact area: pi", self.dialog.result_text("polar_area"))
+        self.assertIn({"label": "Exact area:", "latex": r"\pi", "text": "pi"}, self.dialog.result_view.rows)
 
         area_result = {"signed": 0.0, "absolute": 1.0, "positive_area": 0.5, "negative_area": 0.5}
         with patch("qt_math_tools.compute_area_breakdown", return_value=area_result) as helper:
             self.dialog.actions["area.compute"].click()
         helper.assert_called_once_with("x", "-1", "1")
-        self.assertIn("Absolute area: 1", self.dialog.results["area"].toPlainText())
+        self.assertIn("Absolute area: 1", self.dialog.result_text("area"))
+        # The view keeps showing the open page; switching pages shows the other result.
+        self.assertIn("Exact area:", [row.get("label") for row in self.dialog.result_view.rows])
+        self.dialog.tool_list.setCurrentRow(0)
+        self.assertIn("Absolute area:", [row.get("label") for row in self.dialog.result_view.rows])
+
+    def test_real_helpers_render_as_formulas(self):
+        self.dialog.tool_list.setCurrentRow(2)
+        self.dialog.math_fields["geometry.function"].set_text("x^2")
+        self.dialog.actions["geometry.compute"].click()
+        latex = [row.get("latex", "") for row in self.dialog.result_view.rows]
+        self.assertIn(r"\frac{\pi}{5}", latex)
+        self.assertIn(r"\approx 1.478942858", latex)
+
+        self.dialog.tool_list.setCurrentRow(3)
+        self.dialog.actions["techniques.substitute"].click()
+        self.assertIn("x(u) = sqrt(u)", self.dialog.result_text("integration_techniques"))
+
+    def test_missing_closed_form_is_explained_in_chinese(self):
+        dialog = self.make_dialog(text=ui_text("中文（简体）"))
+        dialog._submit_job = lambda function, arguments, present: present(function(*arguments))
+        dialog.tool_list.setCurrentRow(2)
+        dialog.math_fields["geometry.function"].set_text("sin(x)")
+        dialog.math_fields["geometry.upper"].set_text("pi")
+        dialog.actions["geometry.compute"].click()
+        text = dialog.result_text("arc_length_volume")
+        self.assertIn("没有闭式解", text)
+        self.assertNotIn("no closed form", text)
+        self.assertIn("3.820197789", text)
 
     def test_helper_errors_are_shown_with_the_button_title(self):
         with patch(

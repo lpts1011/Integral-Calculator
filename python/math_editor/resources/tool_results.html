@@ -1,0 +1,102 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="light dark">
+  <script src="./mathlive.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #ffffff;
+      --fg: #1f2933;
+      --muted: #52616b;
+      --border: #d1d5db;
+      --accent: #2563eb;
+    }
+    :root[data-theme="Dark"] {
+      color-scheme: dark;
+      --bg: #1f2429;
+      --fg: #e5e7eb;
+      --muted: #a8b3bd;
+      --border: #374151;
+      --accent: #60a5fa;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--fg); }
+    body { padding: 10px 14px 14px; font: 13px/1.45 system-ui, sans-serif; }
+    #rows { border: 1px solid var(--border); padding: 4px 12px 8px; min-height: 120px; }
+    .heading { margin: 6px 0 0; font-size: 14px; font-weight: 650; color: var(--accent); }
+    .row { display: flex; align-items: center; gap: 10px; min-height: 30px; overflow-x: auto; }
+    .label { color: var(--muted); white-space: nowrap; }
+    .note { color: var(--muted); }
+    math-field {
+      display: block;
+      min-width: min-content;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--fg);
+      font-size: 17px;
+      pointer-events: none;
+      --caret-color: transparent;
+      --selection-background-color: transparent;
+    }
+    math-field::part(virtual-keyboard-toggle), math-field::part(menu-toggle) { display: none; }
+  </style>
+</head>
+<body>
+  <section id="rows"></section>
+  <script>
+  (() => {
+    let current = null;
+
+    function formula(latex) {
+      const field = document.createElement('math-field');
+      field.readOnly = true;
+      field.setAttribute('read-only', '');
+      field.setAttribute('tabindex', '-1');
+      field.setValue(latex, {format: 'latex', silenceNotifications: true});
+      return field;
+    }
+
+    function setData(payload) {
+      current = payload;
+      document.documentElement.dataset.theme = payload.theme || '';
+      const container = document.getElementById('rows');
+      container.replaceChildren();
+      (payload.rows || []).forEach((item) => {
+        if (item.heading) {
+          const heading = document.createElement('div');
+          heading.className = 'heading';
+          heading.textContent = item.heading;
+          container.appendChild(heading);
+          return;
+        }
+        const row = document.createElement('div');
+        row.className = 'row';
+        if (item.label) {
+          const label = document.createElement('span');
+          label.className = 'label';
+          label.textContent = item.label;
+          row.appendChild(label);
+        }
+        if (item.latex) {
+          row.appendChild(formula(item.latex));
+        } else {
+          const note = document.createElement('span');
+          note.className = 'note';
+          note.textContent = item.text || '';
+          row.appendChild(note);
+        }
+        container.appendChild(row);
+      });
+    }
+
+    window.toolResults = {
+      setData,
+      snapshot() { return current; },
+    };
+  })();
+  </script>
+</body>
+</html>

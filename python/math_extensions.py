@@ -6,11 +6,12 @@ from solving.core.symbol import symbols
 from solving.functions import sqrt
 from solving.integrals.integrals import Integral, integrate
 from solving.parsing.solving_parser import parse_expr
+from solving.printing.latex import latex
 from solving.simplify.simplify import simplify
 from solving.solvers.solvers import solve
 from solving.utilities.lambdify import lambdify
 
-from formatting import pretty_math_str
+from formatting import is_complicated, pretty_math_str
 from numeric_methods import (
     build_numeric_callable,
     numeric_scalar,
@@ -49,6 +50,18 @@ def _parse_with_symbols(expr_text, symbols_by_name):
     return expr
 
 
+def _exact_latex(expr):
+    """LaTeX for an exact result, or None when only its number is readable."""
+    if expr is None or expr.has(Integral) or is_complicated(expr):
+        return None
+    return latex(expr)
+
+
+def _closed_form(exact):
+    """The simplified exact value, or None when integrate left an Integral."""
+    if isinstance(exact, Integral) or exact.has(Integral):
+        return None
+    return simplify(exact)
 
 
 def compute_polar_area(radius_expr, lower_text, upper_text):
@@ -58,10 +71,12 @@ def compute_polar_area(radius_expr, lower_text, upper_text):
     area_expr = Rational(1, 2) * radius**2
     exact = integrate(area_expr, (theta_sym, lower, upper))
     numeric = float(exact.evalf())
+    closed = _closed_form(exact)
     return {
         "integrand": pretty_math_str(area_expr),
-        "exact": pretty_math_str(simplify(exact)),
+        "exact": None if closed is None else pretty_math_str(closed),
         "numeric": numeric,
+        "latex": {"integrand": latex(area_expr), "exact": _exact_latex(closed)},
     }
 
 
@@ -80,13 +95,20 @@ def substitution_integral_helper(func_str, substitution_text):
     solutions = solve(Eq(u_sym, u_expr), x_sym)
     if not solutions:
         raise ValueError("Could not solve the substitution for x.")
-    x_of_u = solutions[0]
+    # u = x^2 gives x = ±sqrt(u); textbooks use the positive branch.
+    x_of_u = next((s for s in solutions if not s.could_extract_minus_sign()), solutions[0])
     transformed = simplify(expr.subs(x_sym, x_of_u) * diff(x_of_u, u_sym))
     return {
         "u": pretty_math_str(u_expr),
         "du_dx": pretty_math_str(du_dx),
         "x_of_u": pretty_math_str(x_of_u),
         "transformed_integrand": pretty_math_str(transformed),
+        "latex": {
+            "u": latex(u_expr),
+            "du_dx": latex(du_dx),
+            "x_of_u": latex(x_of_u),
+            "transformed_integrand": latex(transformed),
+        },
     }
 
 
@@ -104,6 +126,14 @@ def integration_by_parts_helper(u_text, dv_text):
         "v": pretty_math_str(v_expr),
         "remaining_integrand": pretty_math_str(remaining),
         "result": pretty_math_str(formula_rhs),
+        "latex": {
+            "u": latex(u_expr),
+            "du": latex(du_expr),
+            "dv": latex(dv_expr),
+            "v": latex(v_expr),
+            "remaining_integrand": latex(remaining),
+            "result": latex(formula_rhs),
+        },
     }
 
 
@@ -134,19 +164,19 @@ def compute_arc_length(func_str, lower_text, upper_text):
     upper = parse_input_to_solving(upper_text)
     integrand = sqrt(1 + diff(expr, x_sym) ** 2)
     exact = integrate(integrand, (x_sym, lower, upper))
-    if isinstance(exact, Integral) or exact.has(Integral):
+    closed = _closed_form(exact)
+    if closed is None:
         f_num = lambdify(x_sym, integrand, modules="numpy")
         numeric, error = quad(lambda t: float(f_num(t)), float(lower.evalf()), float(upper.evalf()))
-        exact_text = "no closed form"
     else:
         numeric = float(exact.evalf())
         error = None
-        exact_text = pretty_math_str(simplify(exact))
     return {
         "integrand": pretty_math_str(integrand),
-        "exact": exact_text,
+        "exact": None if closed is None else pretty_math_str(closed),
         "numeric": numeric,
         "error": error,
+        "latex": {"integrand": latex(integrand), "exact": _exact_latex(closed)},
     }
 
 
@@ -162,10 +192,12 @@ def compute_revolution_volume(func_str, lower_text, upper_text, axis="x"):
     else:
         raise ValueError("Axis must be x or y.")
     exact = integrate(integrand, (x_sym, lower, upper))
+    closed = _closed_form(exact)
     return {
         "integrand": pretty_math_str(integrand),
-        "exact": pretty_math_str(simplify(exact)),
+        "exact": None if closed is None else pretty_math_str(closed),
         "numeric": float(exact.evalf()),
+        "latex": {"integrand": latex(integrand), "exact": _exact_latex(closed)},
     }
 
 

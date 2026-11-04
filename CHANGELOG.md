@@ -17,6 +17,21 @@ Releases before 4.0 were renumbered on 2026-11-03 so that each major number mark
 one generation: 2.0–2.6 became 1.1–1.7, 2.7–2.9 became 2.0–2.2, 3.1-beta became
 3.0-beta, 3.1 became 3.0, and 3.2 became 3.1.
 
+## [Unreleased]
+
+### Changed
+
+- Math Tools results are typeset as formulas, like the main result panel, with
+  fractions written one above the other. One result area below the tools shows the
+  open tool's latest result.
+- Substitution uses the positive branch, so u = x² gives x(u) = √u.
+
+### Fixed
+
+- Arc length without a closed form said "no closed form" in English in every
+  language; it now explains in the chosen language that the numerical value is
+  shown below.
+
 ## [6.0] - 2026-11-03 — Integrated Edition
 
 ### Changed

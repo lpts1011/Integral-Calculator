@@ -33,6 +33,7 @@ class InteractiveMathToolsTests(unittest.TestCase):
 
         self.assertAlmostEqual(area["absolute"], 1.0, places=10)
         self.assertEqual(substitution["transformed_integrand"], "cos(u)")
+        self.assertEqual(substitution["x_of_u"], "sqrt(u)")
         self.assertIn("(x - 1)*e^(x)", by_parts["result"])
 
     def test_arc_length_and_revolution_volume(self):
@@ -41,6 +42,14 @@ class InteractiveMathToolsTests(unittest.TestCase):
 
         self.assertEqual(arc["exact"], "sqrt(2)")
         self.assertEqual(volume["exact"], "π/3")
+        self.assertEqual(volume["latex"]["exact"], r"\frac{\pi}{3}")
+
+    def test_arc_length_without_closed_form_returns_only_a_number(self):
+        arc = compute_arc_length("sin(x)", "0", "pi")
+
+        self.assertIsNone(arc["exact"])
+        self.assertIsNone(arc["latex"]["exact"])
+        self.assertAlmostEqual(arc["numeric"], 3.8201977890, places=8)
 
     def test_convergence_report_handles_improper_integral(self):
         report = convergence_report("exp(-x)", "0", "inf", timeout=0)

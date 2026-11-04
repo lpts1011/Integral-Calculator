@@ -19,20 +19,14 @@ from result_presenter import (
 )
 
 
-class ResultWorkspace(QWidget):
-    """Display result values immediately and derive symbolic steps off-thread."""
+class _MathPage(QWidget):
+    """A bundled MathLive page that receives its data through one script call."""
 
-    def __init__(self, parent: QWidget | None = None, *, thread_pool=None) -> None:
+    def __init__(self, page_name: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setObjectName("resultWorkspace")
-        self.setMinimumHeight(200)
-        self._thread_pool = thread_pool or QThreadPool.globalInstance()
         self._ready = False
         self._pending_script: str | None = None
-        self._generation = 0
-        self._text: dict[str, object] = {}
         self._theme_name = "Light"
-        self._model = build_result_summary(None)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -40,12 +34,8 @@ class ResultWorkspace(QWidget):
         layout.addWidget(self.view)
         self.view.loadFinished.connect(self._load_finished)
         self.view.load(
-            QUrl.fromLocalFile(str(Path(runtime_resource_root()) / "results.html"))
+            QUrl.fromLocalFile(str(Path(runtime_resource_root()) / page_name))
         )
-
-    @property
-    def model(self) -> dict[str, Any]:
-        return dict(self._model)
 
     def is_ready(self) -> bool:
         return self._ready
@@ -53,6 +43,46 @@ class ResultWorkspace(QWidget):
     @property
     def web_view(self) -> QWebEngineView:
         return self.view
+
+    def set_theme(self, theme_name: str) -> None:
+        self._theme_name = str(theme_name)
+        self._render()
+
+    def _render(self) -> None:
+        raise NotImplementedError
+
+    def _queue_script(self, script: str) -> None:
+        if self._ready:
+            self.view.page().runJavaScript(script)
+        else:
+            self._pending_script = script
+
+    def _load_finished(self, ok: bool) -> None:
+        self._ready = bool(ok)
+        if self._ready:
+            script = self._pending_script
+            self._pending_script = None
+            if script:
+                self.view.page().runJavaScript(script)
+            else:
+                self._render()
+
+
+class ResultWorkspace(_MathPage):
+    """Display result values immediately and derive symbolic steps off-thread."""
+
+    def __init__(self, parent: QWidget | None = None, *, thread_pool=None) -> None:
+        super().__init__("results.html", parent)
+        self._thread_pool = thread_pool or QThreadPool.globalInstance()
+        self._generation = 0
+        self._text: dict[str, object] = {}
+        self._model = build_result_summary(None)
+        self.setObjectName("resultWorkspace")
+        self.setMinimumHeight(200)
+
+    @property
+    def model(self) -> dict[str, Any]:
+        return dict(self._model)
 
     def set_record(self, record: dict[str, Any] | None) -> None:
         self._generation += 1
@@ -74,10 +104,6 @@ class ResultWorkspace(QWidget):
 
     def set_text(self, text: dict[str, object]) -> None:
         self._text = dict(text)
-        self._render()
-
-    def set_theme(self, theme_name: str) -> None:
-        self._theme_name = str(theme_name)
         self._render()
 
     def scroll_to_steps(self) -> None:
@@ -124,21 +150,30 @@ class ResultWorkspace(QWidget):
             "window.resultWorkspace.setData(%s);" % json.dumps(payload, ensure_ascii=False)
         )
 
-    def _queue_script(self, script: str) -> None:
-        if self._ready:
-            self.view.page().runJavaScript(script)
-        else:
-            self._pending_script = script
-
-    def _load_finished(self, ok: bool) -> None:
-        self._ready = bool(ok)
-        if self._ready:
-            script = self._pending_script
-            self._pending_script = None
-            if script:
-                self.view.page().runJavaScript(script)
-            else:
-                self._render()
 
 
-__all__ = ["ResultWorkspace"]
+class ToolResultView(_MathPage):
+    """Typeset rows of Math Tools output: headings, formulas and plain notes."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__("tool_results.html", parent)
+        self._rows: list[dict[str, str]] = []
+        self.setObjectName("toolResultView")
+        self.setMinimumHeight(170)
+
+    @property
+    def rows(self) -> list[dict[str, str]]:
+        return list(self._rows)
+
+    def set_rows(self, rows) -> None:
+        self._rows = [dict(row) for row in rows]
+        self._render()
+
+    def _render(self) -> None:
+        payload = {"rows": self._rows, "theme": self._theme_name}
+        self._queue_script(
+            "window.toolResults.setData(%s);" % json.dumps(payload, ensure_ascii=False)
+        )
+
+
+__all__ = ["ResultWorkspace", "ToolResultView"]

@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QApplication
 from math_editor.panel import MathEditorPanel
 from math_editor.syntax import FieldRole, normalize_mathlive_text
 from i18n import ui_text
-from qt_result_workspace import ResultWorkspace
+from qt_result_workspace import ResultWorkspace, ToolResultView
 
 
 class MathEditorBridgeTests(unittest.TestCase):
@@ -372,6 +372,35 @@ class MathEditorBridgeTests(unittest.TestCase):
         self.assertGreaterEqual(rendered["mathFields"], 7)
         self.assertEqual(rendered["steps"], 5)
         self.assertFalse(rendered["hidden"])
+
+    def test_tool_result_view_typesets_rows(self):
+        view = ToolResultView()
+        view.resize(640, 260)
+        view.set_theme("Dark")
+        view.set_rows([
+            {"heading": "Volume of revolution"},
+            {"label": "Exact:", "latex": r"\frac{\pi}{5}", "text": "π/5"},
+            {"label": "Exact:", "text": "没有闭式解，下方显示数值结果。"},
+        ])
+        view.show()
+        self.addCleanup(self._delete_panel, view)
+
+        self.assertTrue(self._wait_until(view.is_ready))
+        rendered = json.loads(self._run_javascript(
+            view,
+            "JSON.stringify({"
+            " headings: document.querySelectorAll('.heading').length,"
+            " mathFields: document.querySelectorAll('math-field').length,"
+            " latex: document.querySelector('math-field').value,"
+            " note: document.querySelector('.note').textContent,"
+            " theme: document.documentElement.dataset.theme"
+            " })",
+        ))
+        self.assertEqual(rendered["headings"], 1)
+        self.assertEqual(rendered["mathFields"], 1)
+        self.assertIn("frac", rendered["latex"])
+        self.assertEqual(rendered["note"], "没有闭式解，下方显示数值结果。")
+        self.assertEqual(rendered["theme"], "Dark")
 
 
 if __name__ == "__main__":
