@@ -17,7 +17,7 @@ Releases before 4.0 were renumbered on 2026-11-03 so that each major number mark
 one generation: 2.0–2.6 became 1.1–1.7, 2.7–2.9 became 2.0–2.2, 3.1-beta became
 3.0-beta, 3.1 became 3.0, and 3.2 became 3.1.
 
-## [Unreleased]
+## [6.1] - 2026-11-04 — Integrated Edition
 
 ### Changed
 

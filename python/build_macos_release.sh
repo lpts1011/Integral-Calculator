@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-APP_VERSION="${APP_VERSION:-6.0}"
+APP_VERSION="${APP_VERSION:-6.1}"
 DEVELOPER_ID_APPLICATION="${DEVELOPER_ID_APPLICATION:-}"
 NOTARY_PROFILE="${NOTARY_PROFILE:-integral-calculator-notary}"
 RELEASE_DIR="${RELEASE_DIR:-$PWD/release}"

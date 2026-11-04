@@ -3,7 +3,7 @@
 A desktop integral calculator with exact (symbolic) answers, reliable numerical
 integration, interactive graphs, and step-by-step explanations.
 
-**v6.0 Integrated Edition — One calculator screen.** Definite, indefinite, and
+**v6.1 Integrated Edition — One calculator screen.** Definite, indefinite, and
 improper integrals share one screen that gives the exact answer when one exists
 and a number otherwise. Math Tools is a short list of four tools, and the
 interface is available in English and Simplified Chinese.
