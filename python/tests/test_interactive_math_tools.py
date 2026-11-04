@@ -28,6 +28,46 @@ class InteractiveMathToolsTests(unittest.TestCase):
         self.assertAlmostEqual(compute_arc_length("x", "1", "0")["numeric"], math.sqrt(2))
         self.assertAlmostEqual(compute_polar_area("1", "2*pi", "0")["numeric"], math.pi)
         self.assertAlmostEqual(compute_revolution_volume("x", "1", "0")["numeric"], math.pi/3)
+        self.assertAlmostEqual(compute_revolution_volume("x", "1", "0", "y")["numeric"], 2*math.pi/3)
+
+    def test_y_axis_shells_are_never_negative(self):
+        # The region between y = f(x) and the x-axis; shells below the axis
+        # used to subtract volume (rotating y = -x on [0, 1] gave -2π/3).
+        cases = (
+            ("-x", "0", "1", "2*π/3", 2*math.pi/3),
+            ("x", "-1", "0", "2*π/3", 2*math.pi/3),
+            ("x-1", "0", "2", "2*π", 2*math.pi),
+            ("sin(x)", "0", "2*pi", "8*π^2", 8*math.pi**2),
+        )
+        for function, lower, upper, exact, value in cases:
+            with self.subTest(function=function, lower=lower, upper=upper):
+                volume = compute_revolution_volume(function, lower, upper, "y")
+                self.assertEqual(volume["exact"], exact)
+                self.assertAlmostEqual(volume["numeric"], value, places=9)
+                self.assertIsNone(volume["note"])
+
+    def test_y_axis_shells_from_both_sides_are_counted_once(self):
+        # Both sides of the y-axis sweep the same shells; the old formula
+        # cancelled them (x^2 on [-1, 1] gave 0) or added them twice.
+        cases = (
+            ("x^2", "-1", "1", "π/2", math.pi/2),
+            ("x^2", "-1", "2", "8*π", 8*math.pi),
+            ("x^3", "-1", "1", "4*π/5", 4*math.pi/5),
+            ("x-1", "-1", "2", "10*π/3", 10*math.pi/3),
+            ("sin(x)", "-pi", "pi", "4*π^2", 4*math.pi**2),
+        )
+        for function, lower, upper, exact, value in cases:
+            with self.subTest(function=function, lower=lower, upper=upper):
+                volume = compute_revolution_volume(function, lower, upper, "y")
+                self.assertEqual(volume["exact"], exact)
+                self.assertAlmostEqual(volume["numeric"], value, places=9)
+                self.assertIn("both sides", volume["note"])
+
+    def test_y_axis_volume_without_closed_form_uses_checked_engine(self):
+        # 2π∫₀³ x|cos(x) - x/2| dx; |·| has a kink at a transcendental root.
+        volume = compute_revolution_volume("cos(x)-x/2", "0", "3", "y")
+        self.assertIsNone(volume["exact"])
+        self.assertAlmostEqual(volume["numeric"], 40.8285388152, places=6)
 
     def test_area_resolves_narrow_peaks(self):
         area = compute_area_breakdown("exp(-1000000*(x-0.12345)^2)", "0", "1")

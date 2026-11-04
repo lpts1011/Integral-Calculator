@@ -243,6 +243,18 @@ class QtMathToolsTests(unittest.TestCase):
         self.assertNotIn("no closed form", text)
         self.assertIn("3.820197789", text)
 
+    def test_shell_overlap_is_explained_in_chinese(self):
+        dialog = self.make_dialog(text=ui_text("中文（简体）"))
+        dialog._submit_job = lambda function, arguments, present: present(function(*arguments))
+        dialog.tool_list.setCurrentRow(2)
+        dialog.math_fields["geometry.function"].set_text("x^2")
+        dialog.math_fields["geometry.lower"].set_text("-1")
+        dialog.native_controls["geometry.axis"].setCurrentText("y")
+        dialog.actions["geometry.compute"].click()
+        text = dialog.result_text("arc_length_volume")
+        self.assertIn("说明： 区域位于 y 轴两侧", text)
+        self.assertIn("1.570796327", text)
+
     def test_helper_errors_are_shown_with_the_button_title(self):
         with patch(
             "qt_math_tools.compute_polar_area", side_effect=ValueError("bad radius")

@@ -121,6 +121,10 @@ TOOL_TEXT = {
     "Exact:": "精确值：",
     "Numeric:": "数值：",
     "Volume of revolution": "旋转体体积",
+    "Note:": "说明：",
+    "The region lies on both sides of the y-axis. Shells use the radius r = |x|, "
+    "and where the two sides overlap, the overlap is counted once.":
+        "区域位于 y 轴两侧。柱壳半径取 r = |x|，两侧重叠的部分只计算一次。",
     "Substitution": "换元法",
     "Transformed integrand:": "换元后的被积函数：",
     "Integration by parts": "分部积分法",

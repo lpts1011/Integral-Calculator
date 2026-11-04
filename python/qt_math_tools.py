@@ -337,6 +337,10 @@ class MathToolsDialog(QDialog):
                     rows += [
                         {"heading": heading},
                         self._math(tr("Integrand:"), result["latex"]["integrand"], result["integrand"]),
+                    ]
+                    if result.get("note"):
+                        rows.append({"label": tr("Note:"), "text": tr(result["note"])})
+                    rows += [
                         self._exact_row(tr("Exact:"), result),
                         self._math(tr("Numeric:"), _number(result["numeric"]), f"{result['numeric']:.10g}"),
                     ]

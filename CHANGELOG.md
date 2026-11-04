@@ -17,6 +17,18 @@ Releases before 4.0 were renumbered on 2026-11-03 so that each major number mark
 one generation: 2.0–2.6 became 1.1–1.7, 2.7–2.9 became 2.0–2.2, 3.1-beta became
 3.0-beta, 3.1 became 3.0, and 3.2 became 3.1.
 
+## [Unreleased]
+
+### Fixed
+
+- Volume of revolution about the y-axis is never negative. It turns the region
+  between the curve and the x-axis, so rotating y = −x on [0, 1] gives 2π/3
+  instead of −2π/3.
+- When the limits cross the y-axis, both sides sweep the same shells. Each shell
+  is now counted once, so x² on [−1, 1] gives π/2 instead of 0. The result
+  explains this in a note.
+- Volume without a closed form uses the checked numerical engine.
+
 ## [6.1] - 2026-11-04 — Integrated Edition
 
 ### Changed

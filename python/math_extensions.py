@@ -1,9 +1,9 @@
 from scipy.integrate import quad
 from solving.core.function import diff
-from solving.core.numbers import Rational, pi
+from solving.core.numbers import Integer, Rational, pi
 from solving.core.relational import Eq
-from solving.core.symbol import symbols
-from solving.functions import Abs, sqrt
+from solving.core.symbol import Symbol, symbols
+from solving.functions import Abs, Max, Min, Piecewise, sqrt
 from solving.integrals.integrals import Integral, integrate
 from solving.parsing.solving_parser import parse_expr
 from solving.printing.latex import latex
@@ -189,22 +189,80 @@ def compute_arc_length(func_str, lower_text, upper_text):
     }
 
 
+SHELL_OVERLAP_NOTE = (
+    "The region lies on both sides of the y-axis. Shells use the radius r = |x|, "
+    "and where the two sides overlap, the overlap is counted once."
+)
+
+
+def _shell_integrand(expr, lower, upper):
+    """Shell integrand for turning the region between y = f(x) and the x-axis
+    about the y-axis.
+
+    Returns ``(integrand, variable, lower, upper, overlaps)``. A shell at radius
+    r is as tall as the region is at x = r and x = -r together. On one side of
+    the axis that is |f(x)|. When the limits cross the axis, both sides sweep
+    the same shells, so the union of their heights is counted once instead of
+    adding (or cancelling) the two sides.
+    """
+    if lower >= 0 or upper <= 0:
+        side = {"nonnegative": True} if lower >= 0 else {"nonpositive": True}
+        x = Symbol("x", **side)
+        return 2 * pi * Abs(x) * Abs(expr.subs(x_sym, x)), x, lower, upper, False
+    r = Symbol("r", nonnegative=True)
+    right, left = expr.subs(x_sym, r), expr.subs(x_sym, -r)
+    near, far = sorted((-lower, upper), key=lambda value: float(value.evalf()))
+    both = Max(0, right, left) - Min(0, right, left)
+    if near == far:
+        height = both
+    else:
+        outer = Abs(right if upper == far else left)
+        height = Piecewise((both, r <= near), (outer, True))
+    return 2 * pi * r * height, r, Integer(0), far, True
+
+
+def _definite_number(exact):
+    """The closed form of a definite integral, or None if integrate gave up."""
+    if exact is None:
+        return None
+    closed = _closed_form(exact)
+    if closed is None or closed.has(Piecewise) or not closed.is_number:
+        return None
+    return closed
+
+
 def compute_revolution_volume(func_str, lower_text, upper_text, axis="x"):
     expr = evaluate_symbolic_function(func_str)
     lower, upper = _geometric_bounds(lower_text, upper_text)
     axis = axis.strip().lower()
+    note = None
     if axis == "x":
-        integrand = pi * expr**2
+        integrand, variable, lo, hi = pi * expr**2, x_sym, lower, upper
+        exact = integrate(integrand, (x_sym, lower, upper))
     elif axis == "y":
-        integrand = 2 * pi * x_sym * expr
+        integrand, variable, lo, hi, overlaps = _shell_integrand(expr, lower, upper)
+        note = SHELL_OVERLAP_NOTE if overlaps else None
+        try:
+            exact = integrate(integrand.rewrite(Piecewise), (variable, lo, hi))
+        except Exception:  # SymPy raises many types when it cannot split |f|.
+            exact = None
     else:
         raise ValueError("Axis must be x or y.")
-    exact = integrate(integrand, (x_sym, lower, upper))
-    closed = _closed_form(exact)
+    closed = _definite_number(exact)
+    if closed is not None:
+        numeric = float(closed.evalf())
+    elif lo.is_finite and hi.is_finite:
+        as_x = integrand.subs(variable, x_sym)
+        numeric, _, _ = compute_segmented_numerical_integral(
+            as_x, "Auto", build_numeric_callable(as_x), float(lo), float(hi),
+        )
+    else:
+        numeric = float(Integral(integrand, (variable, lo, hi)).evalf())
     return {
         "integrand": pretty_math_str(integrand),
         "exact": None if closed is None else pretty_math_str(closed),
-        "numeric": float(exact.evalf()),
+        "numeric": numeric,
+        "note": note,
         "latex": {"integrand": latex(integrand), "exact": _exact_latex(closed)},
     }
 
